@@ -9,6 +9,7 @@ import ManageProjects from './admin/ManageProjects';
 import ManageSkills from './admin/ManageSkills';
 import Messages from './admin/Messages';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -63,6 +64,7 @@ function App() {
         </AuthProvider>
       </BrowserRouter>
       <Analytics />
+      <SpeedInsights />
     </>
   );
 }
