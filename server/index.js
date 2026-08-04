@@ -25,6 +25,11 @@ app.use('/api/skills', skillsRoutes);
 app.use('/api/contacts', contactsRoutes);
 app.use('/api/upload', uploadRoutes);
 
+// Root route
+app.get('/', (req, res) => {
+  res.send('Portfolio API is running. Access endpoints via /api');
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
