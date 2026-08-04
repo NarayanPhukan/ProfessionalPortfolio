@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Portfolio from './pages/Portfolio';
 import AdminLogin from './admin/AdminLogin';
@@ -58,6 +59,7 @@ function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+        <SpeedInsights />
       </AuthProvider>
     </BrowserRouter>
   );
