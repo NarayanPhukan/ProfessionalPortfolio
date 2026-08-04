@@ -8,6 +8,7 @@ import ManageProfile from './admin/ManageProfile';
 import ManageProjects from './admin/ManageProjects';
 import ManageSkills from './admin/ManageSkills';
 import Messages from './admin/Messages';
+import { Analytics } from '@vercel/analytics/react';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -39,27 +40,30 @@ function AdminLoginRoute() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* Public Portfolio */}
-          <Route path="/" element={<Portfolio />} />
+    <>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            {/* Public Portfolio */}
+            <Route path="/" element={<Portfolio />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin/login" element={<AdminLoginRoute />} />
-          <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-            <Route index element={<Dashboard />} />
-            <Route path="profile" element={<ManageProfile />} />
-            <Route path="projects" element={<ManageProjects />} />
-            <Route path="skills" element={<ManageSkills />} />
-            <Route path="messages" element={<Messages />} />
-          </Route>
+            {/* Admin Routes */}
+            <Route path="/admin/login" element={<AdminLoginRoute />} />
+            <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+              <Route index element={<Dashboard />} />
+              <Route path="profile" element={<ManageProfile />} />
+              <Route path="projects" element={<ManageProjects />} />
+              <Route path="skills" element={<ManageSkills />} />
+              <Route path="messages" element={<Messages />} />
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+      <Analytics />
+    </>
   );
 }
 
