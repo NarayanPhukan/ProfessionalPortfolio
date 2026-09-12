@@ -30,5 +30,11 @@ service cloud.firestore {
       allow create: if true;
       allow read, update, delete: if request.auth != null;
     }
+
+    // App updates & version control: public read, authenticated admin write
+    match /app_updates/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
   }
 }

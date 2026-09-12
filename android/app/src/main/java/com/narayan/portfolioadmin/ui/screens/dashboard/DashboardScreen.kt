@@ -1,6 +1,7 @@
 package com.narayan.portfolioadmin.ui.screens.dashboard
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,14 +25,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.narayan.portfolioadmin.data.model.AppUpdateInfo
 import com.narayan.portfolioadmin.data.model.ContactMessage
 import com.narayan.portfolioadmin.data.model.Profile
 import com.narayan.portfolioadmin.data.model.Project
 import com.narayan.portfolioadmin.data.model.Skill
+import com.narayan.portfolioadmin.data.model.UpdateCheckResult
 import com.narayan.portfolioadmin.data.repository.*
 import com.narayan.portfolioadmin.data.tracker.ErrorTracker
+import com.narayan.portfolioadmin.data.updater.UpdateManager
 import com.narayan.portfolioadmin.ui.components.ErrorLogViewerDialog
 import com.narayan.portfolioadmin.ui.components.ReportErrorDialog
+import com.narayan.portfolioadmin.ui.components.UpdateDialog
 import com.narayan.portfolioadmin.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -64,6 +69,14 @@ fun DashboardScreen(
     var showLogsDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
 
+    // Auto-update states
+    var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf(0f) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
+
     val unreadCount = messages.count { !it.is_read }
 
     // Auto-detect & report pending crashes from previous session on startup
@@ -75,6 +88,15 @@ fun DashboardScreen(
                 duration = SnackbarDuration.Long
             )
         }
+
+        // Auto-check for updates on app startup
+        try {
+            val updateRes = UpdateManager.checkForUpdates(context)
+            if (updateRes is UpdateCheckResult.UpdateAvailable) {
+                availableUpdate = updateRes.info
+                showUpdateDialog = true
+            }
+        } catch (_: Exception) {}
     }
 
     Scaffold(
@@ -95,6 +117,47 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    // Update check button
+                    IconButton(onClick = {
+                        coroutineScope.launch {
+                            isCheckingUpdate = true
+                            when (val res = UpdateManager.checkForUpdates(context)) {
+                                is UpdateCheckResult.UpdateAvailable -> {
+                                    availableUpdate = res.info
+                                    showUpdateDialog = true
+                                }
+                                is UpdateCheckResult.UpToDate -> {
+                                    snackbarHostState.showSnackbar("App is up to date (v${res.currentVersion})")
+                                }
+                                is UpdateCheckResult.Error -> {
+                                    snackbarHostState.showSnackbar("Update check failed: ${res.message}")
+                                }
+                            }
+                            isCheckingUpdate = false
+                        }
+                    }) {
+                        if (isCheckingUpdate) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = AccentCyan
+                            )
+                        } else {
+                            BadgedBox(
+                                badge = {
+                                    if (availableUpdate != null) {
+                                        Badge(containerColor = AccentCyan)
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = "Check for Updates",
+                                    tint = if (availableUpdate != null) AccentCyan else TextMuted
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = { showReportDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.BugReport,
@@ -123,6 +186,68 @@ fun DashboardScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Update Available Alert Banner
+            if (availableUpdate != null) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showUpdateDialog = true },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = AccentCyan.copy(alpha = 0.12f)),
+                        border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(AccentCyan.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = null,
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Update Available: v${availableUpdate?.versionName}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = AccentCyan
+                                )
+                                Text(
+                                    text = "Tap to view changelog & update",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                            Button(
+                                onClick = { showUpdateDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "Update",
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             // Profile Summary Header Card
             item {
                 Card(
@@ -478,6 +603,39 @@ fun DashboardScreen(
             onMarkResolved = { id ->
                 coroutineScope.launch {
                     errorReportRepository.markResolved(id)
+                }
+            }
+        )
+    }
+
+    if (showUpdateDialog && availableUpdate != null) {
+        val update = availableUpdate!!
+        UpdateDialog(
+            updateInfo = update,
+            currentVersion = UpdateManager.getCurrentVersionName(context),
+            isDownloading = isDownloadingUpdate,
+            downloadProgress = downloadProgress,
+            downloadError = downloadError,
+            onDismiss = {
+                showUpdateDialog = false
+                downloadError = null
+            },
+            onInstall = {
+                coroutineScope.launch {
+                    isDownloadingUpdate = true
+                    downloadError = null
+                    downloadProgress = 0f
+                    val result = UpdateManager.downloadAndInstallApk(
+                        context = context,
+                        downloadUrl = update.apkUrl,
+                        onProgress = { progress ->
+                            downloadProgress = progress
+                        }
+                    )
+                    isDownloadingUpdate = false
+                    if (result.isFailure) {
+                        downloadError = result.exceptionOrNull()?.localizedMessage ?: "Failed to download update"
+                    }
                 }
             }
         )
