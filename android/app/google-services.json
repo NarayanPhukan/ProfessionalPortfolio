@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "228995045339",
+    "project_id": "narayan-portfolio-app",
+    "storage_bucket": "narayan-portfolio-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228995045339:android:30a6b7b61bc6f79d72b9fe",
+        "android_client_info": {
+          "package_name": "com.narayan.portfolioadmin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEHzFU6cVuq6QIMOtldQGgKh9mZbWy_9Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

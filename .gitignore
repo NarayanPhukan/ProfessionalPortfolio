@@ -5,3 +5,16 @@ node_modules/
 dist/
 build/
 .DS_Store
+*service-account*.json
+token.txt
+
+# Android ignores
+.gradle/
+**/build/
+*.apk
+local.properties
+.idea/
+*.iml
+android/.idea/
+android/.gradle/
+android/local.properties

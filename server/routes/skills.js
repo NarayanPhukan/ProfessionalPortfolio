@@ -1,20 +1,27 @@
 const express = require('express');
-const supabase = require('../lib/supabase');
+const { db } = require('../lib/firebase');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
 // GET all skills (public)
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_skills')
-      .select('*')
-      .order('display_order', { ascending: true });
-
-    if (error) throw error;
-    res.json(data);
+    const snapshot = await db.collection('skills').orderBy('display_order', 'asc').get();
+    const skills = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    res.json(skills);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    try {
+      const snapshot = await db.collection('skills').get();
+      const skills = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      res.json(skills);
+    } catch (fallbackErr) {
+      res.status(500).json({ error: fallbackErr.message });
+    }
   }
 });
 
@@ -22,15 +29,17 @@ router.get('/', async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { name, category, proficiency, icon_name, display_order } = req.body;
+    const newSkill = {
+      name: name || '',
+      category: category || 'Other',
+      proficiency: Number(proficiency) || 50,
+      icon_name: icon_name || '',
+      display_order: Number(display_order) || 0,
+      created_at: new Date().toISOString()
+    };
 
-    const { data, error } = await supabase
-      .from('portfolio_skills')
-      .insert([{ name, category: category || 'Other', proficiency: proficiency || 50, icon_name, display_order: display_order || 0 }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.status(201).json(data);
+    const docRef = await db.collection('skills').add(newSkill);
+    res.status(201).json({ id: docRef.id, ...newSkill });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -39,15 +48,20 @@ router.post('/', authMiddleware, async (req, res) => {
 // PUT update skill (admin)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_skills')
-      .update(req.body)
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    const updates = { ...req.body, updated_at: new Date().toISOString() };
+    delete updates.id;
+    if (updates.proficiency !== undefined) {
+      updates.proficiency = Number(updates.proficiency) || 0;
+    }
+    if (updates.display_order !== undefined) {
+      updates.display_order = Number(updates.display_order) || 0;
+    }
 
-    if (error) throw error;
-    res.json(data);
+    const docRef = db.collection('skills').doc(req.params.id);
+    await docRef.set(updates, { merge: true });
+    const updatedDoc = await docRef.get();
+
+    res.json({ id: updatedDoc.id, ...updatedDoc.data() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -56,12 +70,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // DELETE skill (admin)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('portfolio_skills')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    await db.collection('skills').doc(req.params.id).delete();
     res.json({ message: 'Skill deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

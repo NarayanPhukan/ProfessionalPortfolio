@@ -1,5 +1,5 @@
 const express = require('express');
-const supabase = require('../lib/supabase');
+const { db } = require('../lib/firebase');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
@@ -12,14 +12,17 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Name, email, and message are required' });
     }
 
-    const { data, error } = await supabase
-      .from('portfolio_contacts')
-      .insert([{ name, email, subject: subject || '', message }])
-      .select()
-      .single();
+    const newMessage = {
+      name,
+      email,
+      subject: subject || '',
+      message,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
 
-    if (error) throw error;
-    res.status(201).json({ message: 'Message sent successfully' });
+    const docRef = await db.collection('contacts').add(newMessage);
+    res.status(201).json({ id: docRef.id, message: 'Message sent successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -28,30 +31,32 @@ router.post('/', async (req, res) => {
 // GET all messages (admin)
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_contacts')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json(data);
+    const snapshot = await db.collection('contacts').orderBy('created_at', 'desc').get();
+    const contacts = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    res.json(contacts);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    try {
+      const snapshot = await db.collection('contacts').get();
+      const contacts = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      res.json(contacts);
+    } catch (fallbackErr) {
+      res.status(500).json({ error: fallbackErr.message });
+    }
   }
 });
 
 // PUT mark message as read (admin)
 router.put('/:id/read', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_contacts')
-      .update({ is_read: true })
-      .eq('id', req.params.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json(data);
+    const docRef = db.collection('contacts').doc(req.params.id);
+    await docRef.update({ is_read: true });
+    const updated = await docRef.get();
+    res.json({ id: updated.id, ...updated.data() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -60,12 +65,7 @@ router.put('/:id/read', authMiddleware, async (req, res) => {
 // DELETE message (admin)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('portfolio_contacts')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    await db.collection('contacts').doc(req.params.id).delete();
     res.json({ message: 'Contact deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

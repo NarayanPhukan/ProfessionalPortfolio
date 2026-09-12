@@ -1,34 +1,39 @@
 const express = require('express');
-const supabase = require('../lib/supabase');
+const { db } = require('../lib/firebase');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
 // GET all projects (public)
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .select('*')
-      .order('display_order', { ascending: true });
-
-    if (error) throw error;
-    res.json(data);
+    const snapshot = await db.collection('projects').orderBy('display_order', 'asc').get();
+    const projects = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    res.json(projects);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // Fallback without ordering if index is building
+    try {
+      const snapshot = await db.collection('projects').get();
+      const projects = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      res.json(projects);
+    } catch (fallbackErr) {
+      res.status(500).json({ error: fallbackErr.message });
+    }
   }
 });
 
 // GET single project (public)
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
-
-    if (error) throw error;
-    res.json(data);
+    const doc = await db.collection('projects').doc(req.params.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.json({ id: doc.id, ...doc.data() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -38,15 +43,21 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { title, description, long_description, image_url, tech_stack, live_url, github_url, featured, display_order } = req.body;
+    const newProject = {
+      title: title || '',
+      description: description || '',
+      long_description: long_description || '',
+      image_url: image_url || '',
+      tech_stack: Array.isArray(tech_stack) ? tech_stack : [],
+      live_url: live_url || '',
+      github_url: github_url || '',
+      featured: Boolean(featured),
+      display_order: Number(display_order) || 0,
+      created_at: new Date().toISOString()
+    };
 
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .insert([{ title, description, long_description, image_url, tech_stack: tech_stack || [], live_url, github_url, featured: featured || false, display_order: display_order || 0 }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.status(201).json(data);
+    const docRef = await db.collection('projects').add(newProject);
+    res.status(201).json({ id: docRef.id, ...newProject });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -55,15 +66,17 @@ router.post('/', authMiddleware, async (req, res) => {
 // PUT update project (admin)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .update(req.body)
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    const updates = { ...req.body, updated_at: new Date().toISOString() };
+    delete updates.id;
+    if (updates.display_order !== undefined) {
+      updates.display_order = Number(updates.display_order) || 0;
+    }
 
-    if (error) throw error;
-    res.json(data);
+    const docRef = db.collection('projects').doc(req.params.id);
+    await docRef.set(updates, { merge: true });
+    const updatedDoc = await docRef.get();
+
+    res.json({ id: updatedDoc.id, ...updatedDoc.data() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -72,12 +85,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // DELETE project (admin)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('portfolio_projects')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    await db.collection('projects').doc(req.params.id).delete();
     res.json({ message: 'Project deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

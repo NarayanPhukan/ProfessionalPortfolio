@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const supabase = require('../lib/supabase');
+const { storage } = require('../lib/firebase');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
@@ -29,20 +29,25 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
     const ext = req.file.originalname.split('.').pop();
     const fileName = `${folder}/${timestamp}.${ext}`;
 
-    const { data, error } = await supabase.storage
-      .from('portfolio-assets')
-      .upload(fileName, req.file.buffer, {
-        contentType: req.file.mimetype,
-        upsert: true
-      });
+    const bucket = storage.bucket();
+    const blob = bucket.file(fileName);
 
-    if (error) throw error;
+    await blob.save(req.file.buffer, {
+      metadata: {
+        contentType: req.file.mimetype
+      },
+      resumable: false
+    });
 
-    const { data: urlData } = supabase.storage
-      .from('portfolio-assets')
-      .getPublicUrl(fileName);
+    try {
+      await blob.makePublic();
+    } catch (e) {
+      // Ignore if uniform bucket-level access is on
+    }
 
-    res.json({ url: urlData.publicUrl, path: fileName });
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media`;
+
+    res.json({ url: publicUrl, path: fileName });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
