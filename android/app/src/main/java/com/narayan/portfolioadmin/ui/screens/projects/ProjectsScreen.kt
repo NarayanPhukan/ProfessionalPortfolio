@@ -177,7 +177,7 @@ fun ProjectCard(
         Column(modifier = Modifier.fillMaxWidth()) {
             if (project.image_url.isNotBlank()) {
                 AsyncImage(
-                    model = project.image_url,
+                    model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(project.image_url),
                     contentDescription = project.title,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -321,7 +321,7 @@ fun ProjectEditDialog(
                 // Image preview & upload button
                 if (imageUrl.isNotBlank()) {
                     AsyncImage(
-                        model = imageUrl,
+                        model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(imageUrl),
                         contentDescription = "Project Preview",
                         modifier = Modifier
                             .fillMaxWidth()

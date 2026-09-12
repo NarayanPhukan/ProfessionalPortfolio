@@ -266,7 +266,7 @@ fun DashboardScreen(
                         val avatarUrl = profile?.avatar_url
                         if (!avatarUrl.isNullOrBlank()) {
                             AsyncImage(
-                                model = avatarUrl,
+                                model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(avatarUrl),
                                 contentDescription = "Profile Avatar",
                                 modifier = Modifier
                                     .size(56.dp)

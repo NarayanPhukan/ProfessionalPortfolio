@@ -200,7 +200,7 @@ fun ProfileScreen(
             ) {
                 if (avatarUrl.isNotBlank()) {
                     AsyncImage(
-                        model = avatarUrl,
+                        model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(avatarUrl),
                         contentDescription = "Avatar",
                         modifier = Modifier
                             .size(108.dp)
