@@ -1,6 +1,10 @@
 package com.narayan.portfolioadmin.data.repository
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
@@ -14,6 +18,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,10 +58,26 @@ class ProfileRepository(
                     close(error)
                     return@addSnapshotListener
                 }
-                val profile = snapshot?.toObject(Profile::class.java)?.let {
-                    if (it.id.isBlank()) it.copy(id = snapshot.id) else it
+                if (snapshot != null && snapshot.exists()) {
+                    val profile = snapshot.toObject(Profile::class.java)?.let {
+                        if (it.id.isBlank()) it.copy(id = snapshot.id) else it
+                    }
+                    trySend(profile)
+                } else {
+                    // Fallback to query first document in profile collection if "main" is not yet populated
+                    firestore.collection("profile").limit(1).get()
+                        .addOnSuccessListener { querySnap ->
+                            val fallbackProfile = querySnap.documents.firstOrNull()?.let { doc ->
+                                doc.toObject(Profile::class.java)?.let {
+                                    if (it.id.isBlank()) it.copy(id = doc.id) else it
+                                }
+                            }
+                            trySend(fallbackProfile)
+                        }
+                        .addOnFailureListener {
+                            trySend(null)
+                        }
                 }
-                trySend(profile)
             }
         awaitClose { listener.remove() }
     }
@@ -65,7 +86,12 @@ class ProfileRepository(
         return try {
             val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(Date())
             val updated = profile.copy(updated_at = now)
+            // Update the primary 'main' profile doc
             firestore.collection("profile").document("main").set(updated).await()
+            // If the profile had another document ID, sync it as well
+            if (profile.id.isNotBlank() && profile.id != "main") {
+                firestore.collection("profile").document(profile.id).set(updated).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -229,6 +255,26 @@ class MessagesRepository(
 class StorageRepository(
     private val storage: FirebaseStorage = FirebaseStorage.getInstance()
 ) {
+    suspend fun uploadImage(context: Context, uri: Uri, folder: String): Result<String> {
+        // Attempt Firebase Storage first if available
+        try {
+            val fileName = "$folder/${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}.jpg"
+            val ref = storage.reference.child(fileName)
+            ref.putFile(uri).await()
+            val downloadUrl = ref.downloadUrl.await().toString()
+            return Result.success(downloadUrl)
+        } catch (storageException: Exception) {
+            // If Firebase Storage fails (e.g. absent bucket, billing disabled, network failure),
+            // seamlessly fall back to an optimized Base64 data URI so user avatars/images never fail!
+            return try {
+                val dataUri = convertUriToBase64DataUri(context, uri, folder)
+                Result.success(dataUri)
+            } catch (fallbackException: Exception) {
+                Result.failure(Exception("Image processing failed: ${fallbackException.localizedMessage ?: storageException.localizedMessage}"))
+            }
+        }
+    }
+
     suspend fun uploadImage(uri: Uri, folder: String): Result<String> {
         return try {
             val fileName = "$folder/${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}.jpg"
@@ -239,5 +285,48 @@ class StorageRepository(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private fun convertUriToBase64DataUri(context: Context, uri: Uri, folder: String): String {
+        val maxDim = if (folder == "avatars") 360 else 800
+        val quality = if (folder == "avatars") 85 else 75
+
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        } ?: throw Exception("Could not open image stream")
+
+        var inSampleSize = 1
+        val (width, height) = options.outWidth to options.outHeight
+        if (width > maxDim || height > maxDim) {
+            val halfWidth = width / 2
+            val halfHeight = height / 2
+            while ((halfWidth / inSampleSize) >= maxDim || (halfHeight / inSampleSize) >= maxDim) {
+                inSampleSize *= 2
+            }
+        }
+
+        val decodeOptions = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
+        val bitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, decodeOptions)
+        } ?: throw Exception("Could not decode image bitmap")
+
+        val scaledBitmap = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+            val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
+            val (newWidth, newHeight) = if (ratio > 1) {
+                maxDim to (maxDim / ratio).toInt()
+            } else {
+                (maxDim * ratio).toInt() to maxDim
+            }
+            Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        } else {
+            bitmap
+        }
+
+        val outputStream = ByteArrayOutputStream()
+        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+        val byteArray = outputStream.toByteArray()
+        val base64String = Base64.encodeToString(byteArray, Base64.NO_WRAP)
+        return "data:image/jpeg;base64,$base64String"
     }
 }

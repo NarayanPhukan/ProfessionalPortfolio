@@ -274,6 +274,7 @@ fun ProjectEditDialog(
     onSave: (Project) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var title by remember { mutableStateOf(project?.title ?: "") }
     var description by remember { mutableStateOf(project?.description ?: "") }
@@ -293,10 +294,14 @@ fun ProjectEditDialog(
         if (uri != null) {
             coroutineScope.launch {
                 isUploading = true
-                val result = storageRepository.uploadImage(uri, "projects")
+                val result = storageRepository.uploadImage(context, uri, "projects")
                 isUploading = false
                 if (result.isSuccess) {
                     imageUrl = result.getOrThrow()
+                    Toast.makeText(context, "Image processed successfully!", Toast.LENGTH_SHORT).show()
+                } else {
+                    val err = result.exceptionOrNull()?.localizedMessage ?: "Failed to upload image"
+                    Toast.makeText(context, "Image error: $err", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -309,6 +314,7 @@ fun ProjectEditDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -337,13 +343,22 @@ fun ProjectEditDialog(
                     if (isUploading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Uploading Image...")
+                        Text("Processing Image...")
                     } else {
                         Icon(Icons.Default.Upload, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(if (imageUrl.isBlank()) "Upload Image" else "Change Image")
                     }
                 }
+
+                OutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("Image URL") },
+                    placeholder = { Text("https://... or photo data URI") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 OutlinedTextField(
                     value = title,

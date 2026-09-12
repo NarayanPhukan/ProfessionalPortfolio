@@ -12,6 +12,7 @@ token.txt
 .gradle/
 **/build/
 *.apk
+!apk/*.apk
 local.properties
 .idea/
 *.iml

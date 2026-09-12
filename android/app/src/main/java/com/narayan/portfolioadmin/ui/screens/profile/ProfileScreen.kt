@@ -61,24 +61,28 @@ fun ProfileScreen(
 
     var isSaving by remember { mutableStateOf(false) }
     var isUploadingAvatar by remember { mutableStateOf(false) }
-    var showSuccessSnackbar by remember { mutableStateOf(false) }
+    var isInitialized by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(initialProfile) {
-        initialProfile?.let { p ->
-            name = p.name
-            title = p.title
-            bio = p.bio
-            aboutText = p.about_text
-            email = p.email
-            phone = p.phone
-            location = p.location
-            avatarUrl = p.avatar_url
-            resumeUrl = p.resume_url
-            githubUrl = p.github_url
-            linkedinUrl = p.linkedin_url
-            instagramUrl = p.instagram_url
-            availableForHire = p.available_for_hire
+        if (!isInitialized && initialProfile != null) {
+            initialProfile?.let { p ->
+                name = p.name
+                title = p.title
+                bio = p.bio
+                aboutText = p.about_text
+                email = p.email
+                phone = p.phone
+                location = p.location
+                avatarUrl = p.avatar_url
+                resumeUrl = p.resume_url
+                githubUrl = p.github_url
+                linkedinUrl = p.linkedin_url
+                instagramUrl = p.instagram_url
+                availableForHire = p.available_for_hire
+            }
+            isInitialized = true
         }
     }
 
@@ -88,22 +92,26 @@ fun ProfileScreen(
         if (uri != null) {
             coroutineScope.launch {
                 isUploadingAvatar = true
-                val res = storageRepository.uploadImage(uri, "avatars")
+                val res = storageRepository.uploadImage(context, uri, "avatars")
                 isUploadingAvatar = false
                 if (res.isSuccess) {
                     avatarUrl = res.getOrThrow()
+                    Toast.makeText(context, "Avatar image prepared!", Toast.LENGTH_SHORT).show()
+                } else {
+                    val err = res.exceptionOrNull()?.localizedMessage ?: "Failed to set avatar"
+                    snackbarHostState.showSnackbar("Could not set avatar: $err")
                 }
             }
         }
     }
 
-    val context = LocalContext.current
     val saveProfile = {
         if (!isSaving && name.isNotBlank()) {
             coroutineScope.launch {
                 isSaving = true
+                val targetId = initialProfile?.id?.ifBlank { "main" } ?: "main"
                 val updated = Profile(
-                    id = initialProfile?.id ?: "main",
+                    id = targetId,
                     name = name.trim(),
                     title = title.trim(),
                     bio = bio.trim(),
@@ -173,6 +181,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -231,9 +240,18 @@ fun ProfileScreen(
             }
 
             Text(
-                text = if (isUploadingAvatar) "Uploading avatar..." else "Tap to change photo",
+                text = if (isUploadingAvatar) "Processing photo..." else "Tap avatar above to pick photo, or enter URL below",
                 fontSize = 12.sp,
                 color = TextSecondary
+            )
+
+            OutlinedTextField(
+                value = avatarUrl,
+                onValueChange = { avatarUrl = it },
+                label = { Text("Avatar Photo URL") },
+                placeholder = { Text("https://... or photo data URI") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
             )
 
             // Personal Info
