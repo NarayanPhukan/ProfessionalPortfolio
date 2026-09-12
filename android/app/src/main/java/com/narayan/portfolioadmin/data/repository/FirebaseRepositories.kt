@@ -3,7 +3,9 @@ package com.narayan.portfolioadmin.data.repository
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.util.Base64
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -14,10 +16,12 @@ import com.narayan.portfolioadmin.data.model.ContactMessage
 import com.narayan.portfolioadmin.data.model.Profile
 import com.narayan.portfolioadmin.data.model.Project
 import com.narayan.portfolioadmin.data.model.Skill
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -256,21 +260,14 @@ class StorageRepository(
     private val storage: FirebaseStorage = FirebaseStorage.getInstance()
 ) {
     suspend fun uploadImage(context: Context, uri: Uri, folder: String): Result<String> {
-        // Attempt Firebase Storage first if available
-        try {
-            val fileName = "$folder/${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}.jpg"
-            val ref = storage.reference.child(fileName)
-            ref.putFile(uri).await()
-            val downloadUrl = ref.downloadUrl.await().toString()
-            return Result.success(downloadUrl)
-        } catch (storageException: Exception) {
-            // If Firebase Storage fails (e.g. absent bucket, billing disabled, network failure),
-            // seamlessly fall back to an optimized Base64 data URI so user avatars/images never fail!
-            return try {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Safely convert the selected URI into an optimized Base64 data URI
+                // directly while contentResolver permissions are active.
                 val dataUri = convertUriToBase64DataUri(context, uri, folder)
                 Result.success(dataUri)
-            } catch (fallbackException: Exception) {
-                Result.failure(Exception("Image processing failed: ${fallbackException.localizedMessage ?: storageException.localizedMessage}"))
+            } catch (e: Exception) {
+                Result.failure(Exception("Image processing failed: ${e.localizedMessage ?: e.javaClass.simpleName}"))
             }
         }
     }
@@ -288,16 +285,42 @@ class StorageRepository(
     }
 
     private fun convertUriToBase64DataUri(context: Context, uri: Uri, folder: String): String {
-        val maxDim = if (folder == "avatars") 360 else 800
+        val maxDim = if (folder == "avatars") 360 else 720
         val quality = if (folder == "avatars") 85 else 75
 
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
-        } ?: throw Exception("Could not open image stream")
+        // Strategy 1: Modern ImageDecoder (API 28+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                val source = ImageDecoder.createSource(context.contentResolver, uri)
+                val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    val size = info.size
+                    if (size.width > maxDim || size.height > maxDim) {
+                        val ratio = size.width.toFloat() / size.height.toFloat()
+                        val targetW = if (ratio > 1) maxDim else (maxDim * ratio).toInt().coerceAtLeast(1)
+                        val targetH = if (ratio > 1) (maxDim / ratio).toInt().coerceAtLeast(1) else maxDim
+                        decoder.setTargetSize(targetW, targetH)
+                    }
+                }
+                val outputStream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+                val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+                return "data:image/jpeg;base64,$base64"
+            } catch (decoderErr: Exception) {
+                // Fall back to Strategy 2 below
+            }
+        }
+
+        // Strategy 2: Read bytes in one shot from contentResolver (never re-opens stream)
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw Exception("Could not read selected image file")
+
+        // First pass: decode bounds
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
 
         var inSampleSize = 1
-        val (width, height) = options.outWidth to options.outHeight
+        val (width, height) = boundsOptions.outWidth to boundsOptions.outHeight
         if (width > maxDim || height > maxDim) {
             val halfWidth = width / 2
             val halfHeight = height / 2
@@ -306,27 +329,23 @@ class StorageRepository(
             }
         }
 
+        // Second pass: decode bitmap with sampling
         val decodeOptions = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
-        val bitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, decodeOptions)
-        } ?: throw Exception("Could not decode image bitmap")
+        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
+            ?: throw Exception("Could not decode image content")
 
-        val scaledBitmap = if (bitmap.width > maxDim || bitmap.height > maxDim) {
-            val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
-            val (newWidth, newHeight) = if (ratio > 1) {
-                maxDim to (maxDim / ratio).toInt()
-            } else {
-                (maxDim * ratio).toInt() to maxDim
-            }
-            Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        val scaled = if (decoded.width > maxDim || decoded.height > maxDim) {
+            val ratio = decoded.width.toFloat() / decoded.height.toFloat()
+            val targetW = if (ratio > 1) maxDim else (maxDim * ratio).toInt().coerceAtLeast(1)
+            val targetH = if (ratio > 1) (maxDim / ratio).toInt().coerceAtLeast(1) else maxDim
+            Bitmap.createScaledBitmap(decoded, targetW, targetH, true)
         } else {
-            bitmap
+            decoded
         }
 
-        val outputStream = ByteArrayOutputStream()
-        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-        val byteArray = outputStream.toByteArray()
-        val base64String = Base64.encodeToString(byteArray, Base64.NO_WRAP)
-        return "data:image/jpeg;base64,$base64String"
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, quality, out)
+        val base64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+        return "data:image/jpeg;base64,$base64"
     }
 }
