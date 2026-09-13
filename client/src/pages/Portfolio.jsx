@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiMail, FiPhone, FiMapPin, FiGithub, FiLinkedin, FiInstagram, FiDownload, FiArrowRight, FiCode, FiBriefcase, FiExternalLink, FiSend } from 'react-icons/fi';
-import { profileAPI, projectsAPI, skillsAPI, contactsAPI } from '../api';
+import { profileAPI, projectsAPI, skillsAPI, contactsAPI, analyticsAPI } from '../api';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ParticlesBg from '../components/ParticlesBg';
@@ -17,6 +17,7 @@ export default function Portfolio() {
 
   useEffect(() => {
     loadData();
+    analyticsAPI.recordVisit();
 
     // Auto-refresh dynamically when user returns to the portfolio tab
     const handleFocus = () => loadData(true);

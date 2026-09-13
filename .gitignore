@@ -19,3 +19,5 @@ local.properties
 android/.idea/
 android/.gradle/
 android/local.properties
+.vscode/
+

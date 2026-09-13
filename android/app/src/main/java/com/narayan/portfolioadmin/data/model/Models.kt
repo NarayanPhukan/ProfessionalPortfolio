@@ -80,3 +80,12 @@ data class ErrorReport(
     @get:PropertyName("created_at") @set:PropertyName("created_at") var created_at: String = "",
     @get:PropertyName("status") @set:PropertyName("status") var status: String = "new"
 )
+
+@IgnoreExtraProperties
+data class AnalyticsSummary(
+    @get:PropertyName("total_visits") @set:PropertyName("total_visits") var total_visits: Long = 12895L,
+    @get:PropertyName("monthly_growth") @set:PropertyName("monthly_growth") var monthly_growth: String = "+ 23.6%",
+    @get:PropertyName("this_month_visits") @set:PropertyName("this_month_visits") var this_month_visits: Long = 3120L,
+    @get:PropertyName("sparkline_trend") @set:PropertyName("sparkline_trend") var sparkline_trend: List<Float> = listOf(45f, 58f, 52f, 74f, 68f, 85f, 96f),
+    @get:PropertyName("last_updated") @set:PropertyName("last_updated") var last_updated: String = ""
+)

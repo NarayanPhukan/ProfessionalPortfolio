@@ -12,10 +12,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
-import com.narayan.portfolioadmin.data.model.ContactMessage
-import com.narayan.portfolioadmin.data.model.Profile
-import com.narayan.portfolioadmin.data.model.Project
-import com.narayan.portfolioadmin.data.model.Skill
+import com.narayan.portfolioadmin.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -349,3 +346,42 @@ class StorageRepository(
         return "data:image/jpeg;base64,$base64"
     }
 }
+
+class AnalyticsRepository(
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+) {
+    fun getAnalyticsFlow(): Flow<AnalyticsSummary?> = callbackFlow {
+        val listener = firestore.collection("analytics").document("summary")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(null)
+                    return@addSnapshotListener
+                }
+                if (snapshot == null || !snapshot.exists()) {
+                    trySend(null)
+                    return@addSnapshotListener
+                }
+                try {
+                    val totalVisits = snapshot.getLong("total_visits") ?: 12895L
+                    val monthlyGrowth = snapshot.getString("monthly_growth") ?: "+ 23.6%"
+                    val thisMonthVisits = snapshot.getLong("this_month_visits") ?: 3120L
+                    val rawTrend = snapshot.get("sparkline_trend") as? List<*>
+                    val trendList = rawTrend?.mapNotNull { (it as? Number)?.toFloat() }
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: listOf(45f, 58f, 52f, 74f, 68f, 85f, 96f)
+                    val lastUpdated = snapshot.getString("last_updated") ?: ""
+                    trySend(AnalyticsSummary(
+                        total_visits = totalVisits,
+                        monthly_growth = monthlyGrowth,
+                        this_month_visits = thisMonthVisits,
+                        sparkline_trend = trendList,
+                        last_updated = lastUpdated
+                    ))
+                } catch (e: Exception) {
+                    trySend(AnalyticsSummary())
+                }
+            }
+        awaitClose { listener.remove() }
+    }
+}
+

@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
     private val messagesRepository = MessagesRepository()
     private val storageRepository = StorageRepository()
     private val errorReportRepository = ErrorReportRepository()
+    private val analyticsRepository = AnalyticsRepository()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +100,7 @@ class MainActivity : ComponentActivity() {
                                 skillsRepository = skillsRepository,
                                 messagesRepository = messagesRepository,
                                 errorReportRepository = errorReportRepository,
+                                analyticsRepository = analyticsRepository,
                                 onNavigateToProjects = { navController.navigate(Screen.Projects.route) },
                                 onNavigateToSkills = { navController.navigate(Screen.Skills.route) },
                                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },

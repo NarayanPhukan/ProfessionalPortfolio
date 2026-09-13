@@ -33,10 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.narayan.portfolioadmin.data.model.AppUpdateInfo
-import com.narayan.portfolioadmin.data.model.Project
-import com.narayan.portfolioadmin.data.model.Skill
-import com.narayan.portfolioadmin.data.model.UpdateCheckResult
+import com.narayan.portfolioadmin.data.model.*
 import com.narayan.portfolioadmin.data.repository.*
 import com.narayan.portfolioadmin.data.tracker.ErrorTracker
 import com.narayan.portfolioadmin.data.updater.UpdateManager
@@ -59,6 +56,7 @@ fun DashboardScreen(
     skillsRepository: SkillsRepository,
     messagesRepository: MessagesRepository,
     errorReportRepository: ErrorReportRepository = remember { ErrorReportRepository() },
+    analyticsRepository: AnalyticsRepository = remember { AnalyticsRepository() },
     onNavigateToProjects: () -> Unit,
     onNavigateToSkills: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -74,6 +72,7 @@ fun DashboardScreen(
     val skills by skillsRepository.getSkillsFlow().collectAsState(initial = emptyList())
     val messages by messagesRepository.getMessagesFlow().collectAsState(initial = emptyList())
     val errorReports by errorReportRepository.getErrorReportsFlow().collectAsState(initial = emptyList())
+    val analyticsSummary by analyticsRepository.getAnalyticsFlow().collectAsState(initial = null)
 
     val storageRepository = remember { StorageRepository() }
 
@@ -251,7 +250,7 @@ fun DashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                val totalVisitsCount = 12847 + (projects.size * 12) + (messages.size * 8)
+                                val totalVisitsCount = (analyticsSummary?.total_visits ?: 12895L) + messages.size
                                 Text(
                                     text = String.format(Locale.US, "%,d", totalVisitsCount),
                                     fontSize = 36.sp,
@@ -260,8 +259,10 @@ fun DashboardScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val rawGrowth = analyticsSummary?.monthly_growth?.ifBlank { "↑ 23.6%" } ?: "↑ 23.6%"
+                                    val formattedGrowth = if (rawGrowth.startsWith("+")) "↑ ${rawGrowth.removePrefix("+").trim()}" else rawGrowth
                                     Text(
-                                        text = "↑ 23.6%",
+                                        text = formattedGrowth,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF10B981)
@@ -275,21 +276,30 @@ fun DashboardScreen(
                                 }
                             }
 
-                            // Sparkline Canvas Chart
+                            // Dynamic Sparkline Canvas Chart
+                            val trendData: List<Float> = remember(analyticsSummary?.sparkline_trend) {
+                                val list = analyticsSummary?.sparkline_trend
+                                if (list != null && list.size >= 2) list else listOf(45f, 58f, 52f, 74f, 68f, 85f, 96f)
+                            }
+
                             Canvas(modifier = Modifier.width(110.dp).height(48.dp)) {
-                                val points = listOf(
-                                    Offset(0f, size.height * 0.82f),
-                                    Offset(size.width * 0.16f, size.height * 0.68f),
-                                    Offset(size.width * 0.32f, size.height * 0.74f),
-                                    Offset(size.width * 0.48f, size.height * 0.38f),
-                                    Offset(size.width * 0.64f, size.height * 0.46f),
-                                    Offset(size.width * 0.80f, size.height * 0.22f),
-                                    Offset(size.width, size.height * 0.08f)
-                                )
-                                val path = Path().apply {
-                                    moveTo(points.first().x, points.first().y)
-                                    for (i in 1 until points.size) {
-                                        lineTo(points[i].x, points[i].y)
+                                val minVal: Float = trendData.minOrNull() ?: 0f
+                                val maxVal: Float = trendData.maxOrNull() ?: 100f
+                                val range: Float = (maxVal - minVal).coerceAtLeast(1f)
+                                val topPadding = size.height * 0.12f
+                                val bottomPadding = size.height * 0.12f
+                                val drawableHeight = size.height - topPadding - bottomPadding
+                                val stepX = size.width / (trendData.size - 1).coerceAtLeast(1)
+
+                                val path = Path()
+                                trendData.forEachIndexed { index: Int, value: Float ->
+                                    val x = index.toFloat() * stepX
+                                    val normalized = (value - minVal) / range
+                                    val y = size.height - bottomPadding - (normalized * drawableHeight)
+                                    if (index == 0) {
+                                        path.moveTo(x, y)
+                                    } else {
+                                        path.lineTo(x, y)
                                     }
                                 }
                                 drawPath(
