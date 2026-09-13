@@ -23,6 +23,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.narayan.portfolioadmin.data.notification.NotificationHelper
 import com.narayan.portfolioadmin.data.repository.*
 import com.narayan.portfolioadmin.ui.navigation.Screen
 import com.narayan.portfolioadmin.ui.screens.dashboard.DashboardScreen
@@ -76,6 +77,31 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
+                    // Monitor incoming client inquiries to trigger real-time heads-up push notifications
+                    var lastObservedMessageId by remember { mutableStateOf<String?>(null) }
+                    var hasInitialMessagesLoaded by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(authRepository.isLoggedIn) {
+                        if (authRepository.isLoggedIn) {
+                            messagesRepository.getMessagesFlow().collect { list ->
+                                if (!hasInitialMessagesLoaded) {
+                                    lastObservedMessageId = list.firstOrNull()?.id
+                                    hasInitialMessagesLoaded = true
+                                } else {
+                                    val newest = list.firstOrNull()
+                                    if (newest != null && newest.id != lastObservedMessageId && !newest.is_read) {
+                                        NotificationHelper.showInquiryNotification(
+                                            context = this@MainActivity,
+                                            senderName = newest.name.ifBlank { "Website Visitor" },
+                                            previewText = newest.message.ifBlank { "New client inquiry submitted on website" }
+                                        )
+                                        lastObservedMessageId = newest.id
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     NavHost(
                         navController = navController,
                         startDestination = if (authRepository.isLoggedIn) Screen.Dashboard.route else Screen.Login.route,
@@ -131,7 +157,15 @@ class MainActivity : ComponentActivity() {
                             ProfileScreen(
                                 profileRepository = profileRepository,
                                 storageRepository = storageRepository,
-                                onBack = { navController.popBackStack() }
+                                authRepository = authRepository,
+                                errorReportRepository = errorReportRepository,
+                                onBack = { navController.popBackStack() },
+                                onLogout = {
+                                    authRepository.logout()
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
                             )
                         }
 

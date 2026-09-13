@@ -2,6 +2,7 @@ package com.narayan.portfolioadmin
 
 import android.app.Application
 import com.google.firebase.FirebaseApp
+import com.narayan.portfolioadmin.data.notification.NotificationHelper
 import com.narayan.portfolioadmin.data.tracker.ErrorTracker
 
 class PortfolioAdminApp : Application() {
@@ -9,5 +10,6 @@ class PortfolioAdminApp : Application() {
         super.onCreate()
         FirebaseApp.initializeApp(this)
         ErrorTracker.initialize(this)
+        NotificationHelper.createNotificationChannels(this)
     }
 }
