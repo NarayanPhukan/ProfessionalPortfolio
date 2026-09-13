@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,17 +13,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -54,106 +53,154 @@ fun SkillsScreen(
         if (selectedCategory == "All") skills else skills.filter { it.category.equals(selectedCategory, ignoreCase = true) }
     }
 
+    val avgProficiency = remember(skills) {
+        if (skills.isEmpty()) 0 else skills.sumOf { it.proficiency } / skills.size
+    }
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Skills (${skills.size})",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = NavyPrimary
-                    )
-                },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = NavyPrimary
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
-                modifier = Modifier.drawBehind {
-                    drawLine(
-                        color = BorderSubtle,
-                        start = Offset(0f, size.height),
-                        end = Offset(size.width, size.height),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                }
-            )
-        },
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = {
                     editingSkill = null
                     showDialog = true
                 },
-                containerColor = NavyPrimary,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Skill")
-            }
+                containerColor = Color(0xFF0F1E36),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(50),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                icon = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.White) },
+                text = { Text("Add Skill", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                modifier = Modifier.padding(bottom = 80.dp, end = 8.dp)
+            )
         },
         containerColor = BackgroundCanvas
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Category Filter Bar
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(CATEGORIES) { cat ->
-                    FilterChip(
-                        selected = selectedCategory == cat,
-                        onClick = { selectedCategory = cat },
-                        label = { Text(cat, fontSize = 13.sp, fontWeight = if (selectedCategory == cat) FontWeight.Bold else FontWeight.Normal) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = NavyPrimary,
-                            selectedLabelColor = Color.White,
-                            containerColor = SurfaceWhite,
-                            labelColor = TextSecondary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = if (selectedCategory == cat) NavyPrimary else BorderSubtle,
-                            selectedBorderColor = NavyPrimary,
-                            enabled = true,
-                            selected = selectedCategory == cat
-                        )
+            item { Spacer(modifier = Modifier.height(10.dp)) }
+
+            // 1. Header: "PORTFOLIO" / "Skills & Stack" / "N indexed"
+            item {
+                Column {
+                    Text(
+                        text = "PORTFOLIO",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF8A99AD),
+                        letterSpacing = 1.2.sp
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Skills & Stack",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F1E36)
+                        )
+                        Text(
+                            text = "${filteredSkills.size} indexed",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF8A99AD)
+                        )
+                    }
                 }
             }
 
-            // Skills List
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item { Spacer(modifier = Modifier.height(2.dp)) }
-                items(filteredSkills, key = { it.id }) { skill ->
-                    SkillCard(
-                        skill = skill,
-                        onEdit = {
-                            editingSkill = skill
-                            showDialog = true
-                        },
-                        onDelete = { skillToDelete = skill }
-                    )
+            // 2. Summary Card
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFF0F1E36)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("TOTAL SKILLS", color = Color(0xFF8EA3BF), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("${skills.size}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Box(modifier = Modifier.width(1.dp).height(28.dp).background(Color(0xFF243652)))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("AVG PROFICIENCY", color = Color(0xFF8EA3BF), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("$avgProficiency%", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Box(modifier = Modifier.width(1.dp).height(28.dp).background(Color(0xFF243652)))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("CATEGORIES", color = Color(0xFF8EA3BF), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val catCount = skills.map { it.category }.distinct().size
+                            Text("$catCount", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-                item { Spacer(modifier = Modifier.height(72.dp)) }
             }
+
+            // 3. Segmented Category Rail
+            item {
+                Surface(
+                    color = Color(0xFFF1F5F9),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        CATEGORIES.forEach { cat ->
+                            val isSelected = selectedCategory == cat
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) Color(0xFF0F1E36) else Color.Transparent)
+                                    .clickable { selectedCategory = cat }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = cat,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else Color(0xFF64748B)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Skills List
+            items(filteredSkills, key = { it.id }) { skill ->
+                SkillCardItem(
+                    skill = skill,
+                    onEdit = {
+                        editingSkill = skill
+                        showDialog = true
+                    },
+                    onDelete = { skillToDelete = skill }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(110.dp)) }
         }
     }
 
@@ -182,7 +229,7 @@ fun SkillsScreen(
                 Text(
                     text = "Delete Skill",
                     fontWeight = FontWeight.Bold,
-                    color = NavyPrimary
+                    color = Color(0xFF0F1E36)
                 )
             },
             text = {
@@ -201,7 +248,7 @@ fun SkillsScreen(
                         }
                     }
                 ) {
-                    Text("Delete", color = DangerRed, fontWeight = FontWeight.SemiBold)
+                    Text("Delete", color = DangerRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -215,17 +262,17 @@ fun SkillsScreen(
 }
 
 @Composable
-fun SkillCard(
+fun SkillCardItem(
     skill: Skill,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        border = BorderStroke(1.dp, BorderSubtle),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        shadowElevation = 1.dp,
+        border = BorderStroke(1.dp, BorderSubtle)
     ) {
         Column(
             modifier = Modifier
@@ -237,24 +284,37 @@ fun SkillCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = skill.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = NavyPrimary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Surface(
-                        color = NavySoft,
-                        shape = RoundedCornerShape(4.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFEFF4F9)),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
+                            text = skill.name.take(2).uppercase(),
+                            color = Color(0xFF0F1E36),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = skill.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F1E36)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
                             text = skill.category,
-                            color = NavyPrimary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            color = Color(0xFF64748B),
+                            fontSize = 12.sp
                         )
                     }
                 }
@@ -263,32 +323,32 @@ fun SkillCard(
                     text = "${skill.proficiency}%",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = NavyPrimary
+                    color = Color(0xFF0F1E36)
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Row {
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = NavyPrimary, modifier = Modifier.size(20.dp))
+                    IconButton(onClick = onEdit, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF0F1E36), modifier = Modifier.size(16.dp))
                     }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRed, modifier = Modifier.size(20.dp))
+                    IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRed, modifier = Modifier.size(16.dp))
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Proficiency Bar
+            // Dual tone progress bar
             LinearProgressIndicator(
                 progress = { skill.proficiency / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
-                color = NavyPrimary,
-                trackColor = SurfaceSubtle
+                color = Color(0xFF0F1E36),
+                trackColor = Color(0xFFF1F5F9)
             )
         }
     }
@@ -307,15 +367,15 @@ fun SkillEditDialog(
     var displayOrder by remember { mutableStateOf(skill?.display_order?.toString() ?: "0") }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = NavyPrimary,
+        focusedBorderColor = Color(0xFF0F1E36),
         unfocusedBorderColor = BorderSubtle,
-        focusedLabelColor = NavyPrimary,
+        focusedLabelColor = Color(0xFF0F1E36),
         unfocusedLabelColor = TextSecondary,
         focusedTextColor = TextPrimary,
         unfocusedTextColor = TextPrimary,
         focusedContainerColor = SurfaceWhite,
         unfocusedContainerColor = SurfaceWhite,
-        cursorColor = NavyPrimary
+        cursorColor = Color(0xFF0F1E36)
     )
 
     AlertDialog(
@@ -325,7 +385,7 @@ fun SkillEditDialog(
                 text = if (skill == null) "Add Skill" else "Edit Skill",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = NavyPrimary
+                color = Color(0xFF0F1E36)
             )
         },
         text = {
@@ -354,7 +414,7 @@ fun SkillEditDialog(
                             onClick = { category = cat },
                             label = { Text(cat, fontSize = 12.sp) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = NavyPrimary,
+                                selectedContainerColor = Color(0xFF0F1E36),
                                 selectedLabelColor = Color.White,
                                 containerColor = SurfaceSubtle,
                                 labelColor = TextSecondary
@@ -369,15 +429,15 @@ fun SkillEditDialog(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Proficiency", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                        Text("${proficiency.toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = NavyPrimary)
+                        Text("${proficiency.toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F1E36))
                     }
                     Slider(
                         value = proficiency,
                         onValueChange = { proficiency = it },
                         valueRange = 0f..100f,
                         colors = SliderDefaults.colors(
-                            thumbColor = NavyPrimary,
-                            activeTrackColor = NavyPrimary,
+                            thumbColor = Color(0xFF0F1E36),
+                            activeTrackColor = Color(0xFF0F1E36),
                             inactiveTrackColor = SurfaceSubtle
                         )
                     )
@@ -410,7 +470,7 @@ fun SkillEditDialog(
                     }
                 },
                 enabled = name.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F1E36))
             ) {
                 Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold)
             }

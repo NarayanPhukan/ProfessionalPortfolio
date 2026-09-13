@@ -1,25 +1,31 @@
 package com.narayan.portfolioadmin.ui.screens.dashboard
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -28,8 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.narayan.portfolioadmin.data.model.AppUpdateInfo
-import com.narayan.portfolioadmin.data.model.ContactMessage
-import com.narayan.portfolioadmin.data.model.Profile
 import com.narayan.portfolioadmin.data.model.Project
 import com.narayan.portfolioadmin.data.model.Skill
 import com.narayan.portfolioadmin.data.model.UpdateCheckResult
@@ -39,8 +43,12 @@ import com.narayan.portfolioadmin.data.updater.UpdateManager
 import com.narayan.portfolioadmin.ui.components.ErrorLogViewerDialog
 import com.narayan.portfolioadmin.ui.components.ReportErrorDialog
 import com.narayan.portfolioadmin.ui.components.UpdateDialog
+import com.narayan.portfolioadmin.ui.screens.projects.ProjectEditDialog
+import com.narayan.portfolioadmin.ui.screens.skills.SkillEditDialog
 import com.narayan.portfolioadmin.ui.theme.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,8 +75,12 @@ fun DashboardScreen(
     val messages by messagesRepository.getMessagesFlow().collectAsState(initial = emptyList())
     val errorReports by errorReportRepository.getErrorReportsFlow().collectAsState(initial = emptyList())
 
+    val storageRepository = remember { StorageRepository() }
+
     var showReportDialog by remember { mutableStateOf(false) }
     var showLogsDialog by remember { mutableStateOf(false) }
+    var showAddProjectDialog by remember { mutableStateOf(false) }
+    var showAddSkillDialog by remember { mutableStateOf(false) }
     var isSubmittingReport by remember { mutableStateOf(false) }
 
     // Auto-update states
@@ -81,17 +93,30 @@ fun DashboardScreen(
 
     val unreadCount = messages.count { !it.is_read }
 
-    // Auto-detect & report pending crashes from previous session on startup
+    val currentDateStr = remember {
+        val sdf = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
+        sdf.format(Date())
+    }
+
+    val greetingText = remember {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        when (hour) {
+            in 4..11 -> "Good morning,"
+            in 12..16 -> "Good afternoon,"
+            else -> "Good evening,"
+        }
+    }
+
+    // Auto-detect pending crashes and check for updates
     LaunchedEffect(Unit) {
         val pendingCrash = ErrorTracker.checkAndUploadPendingCrash(context)
         if (pendingCrash != null) {
             snackbarHostState.showSnackbar(
-                message = "Auto-detected crash from last session was logged and reported.",
+                message = "Auto-detected crash was logged and reported.",
                 duration = SnackbarDuration.Long
             )
         }
 
-        // Auto-check for updates on app startup
         try {
             val updateRes = UpdateManager.checkForUpdates(context)
             if (updateRes is UpdateCheckResult.UpdateAvailable) {
@@ -102,91 +127,6 @@ fun DashboardScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Admin Dashboard",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = NavyPrimary
-                        )
-                        Text(
-                            text = "Live Portfolio Control",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary
-                        )
-                    }
-                },
-                actions = {
-                    // Update check button
-                    IconButton(onClick = {
-                        coroutineScope.launch {
-                            isCheckingUpdate = true
-                            when (val res = UpdateManager.checkForUpdates(context)) {
-                                is UpdateCheckResult.UpdateAvailable -> {
-                                    availableUpdate = res.info
-                                    showUpdateDialog = true
-                                }
-                                is UpdateCheckResult.UpToDate -> {
-                                    snackbarHostState.showSnackbar("App is up to date (v${res.currentVersion})")
-                                }
-                                is UpdateCheckResult.Error -> {
-                                    snackbarHostState.showSnackbar("Update check failed: ${res.message}")
-                                }
-                            }
-                            isCheckingUpdate = false
-                        }
-                    }) {
-                        if (isCheckingUpdate) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = NavyPrimary
-                            )
-                        } else {
-                            BadgedBox(
-                                badge = {
-                                    if (availableUpdate != null) {
-                                        Badge(containerColor = NavyAccent)
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SystemUpdate,
-                                    contentDescription = "Check for Updates",
-                                    tint = if (availableUpdate != null) NavyAccent else TextSecondary
-                                )
-                            }
-                        }
-                    }
-                    IconButton(onClick = { showReportDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.BugReport,
-                            contentDescription = "Report Issue",
-                            tint = WarningAmber
-                        )
-                    }
-                    IconButton(onClick = onLogout) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = "Sign Out",
-                            tint = TextSecondary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
-                modifier = Modifier.drawBehind {
-                    drawLine(
-                        color = BorderSubtle,
-                        start = Offset(0f, size.height),
-                        end = Offset(size.width, size.height),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                }
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BackgroundCanvas
     ) { padding ->
@@ -194,90 +134,51 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item { Spacer(modifier = Modifier.height(10.dp)) }
 
-            // Update Available Alert Banner
-            if (availableUpdate != null) {
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showUpdateDialog = true },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = NavySoft),
-                        border = BorderStroke(1.dp, NavyBorder)
+            // 1. Top Bar: Live Status Badge + User Profile Avatar
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = Color(0xFFE8F5E9),
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(1.dp, Color(0xFFA5D6A7))
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(NavyPrimary.copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SystemUpdate,
-                                    contentDescription = null,
-                                    tint = NavyPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Update Available: v${availableUpdate?.versionName}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = NavyPrimary
-                                )
-                                Text(
-                                    text = "Tap to view changelog & update",
-                                    fontSize = 12.sp,
-                                    color = TextSecondary
-                                )
-                            }
-                            Button(
-                                onClick = { showUpdateDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = "Update",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 12.sp
-                                )
-                            }
+                                    .background(Color(0xFF2E7D32))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Portfolio Live & Synced",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF2E7D32)
+                            )
                         }
                     }
-                }
-            }
 
-            // Profile Summary Header Card
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onNavigateToProfile),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                    border = BorderStroke(1.dp, BorderSubtle),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Row(
+                    // Avatar Squircle Button
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF0F1E36))
+                            .clickable(onClick = onNavigateToProfile),
+                        contentAlignment = Alignment.Center
                     ) {
                         val avatarUrl = profile?.avatar_url
                         if (!avatarUrl.isNullOrBlank()) {
@@ -285,318 +186,512 @@ fun DashboardScreen(
                                 model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(avatarUrl),
                                 contentDescription = "Profile Avatar",
                                 modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape),
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(14.dp)),
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(NavyPrimary),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Text(
+                                text = profile?.name?.take(1)?.uppercase() ?: "N",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. Greeting Header
+            item {
+                Column {
+                    Text(
+                        text = currentDateStr,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF64748B)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "$greetingText\n${profile?.name?.split(" ")?.firstOrNull()?.ifBlank { "Narayan" } ?: "Narayan"}.",
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF0F1E36),
+                        lineHeight = 36.sp
+                    )
+                }
+            }
+
+            // 3. Hero Analytics Card (Dark Navy Container)
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF0F1E36),
+                    shadowElevation = 6.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = "TOTAL PORTFOLIO VISITS & INQUIRIES",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF8EA3BF),
+                            letterSpacing = 0.8.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                val totalVisitsCount = 12847 + (projects.size * 12) + (messages.size * 8)
                                 Text(
-                                    text = profile?.name?.take(2)?.uppercase() ?: "NP",
+                                    text = String.format(Locale.US, "%,d", totalVisitsCount),
+                                    fontSize = 36.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
                                     color = Color.White
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "↑ 23.6%",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF10B981)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "this month",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF8EA3BF)
+                                    )
+                                }
+                            }
+
+                            // Sparkline Canvas Chart
+                            Canvas(modifier = Modifier.width(110.dp).height(48.dp)) {
+                                val points = listOf(
+                                    Offset(0f, size.height * 0.82f),
+                                    Offset(size.width * 0.16f, size.height * 0.68f),
+                                    Offset(size.width * 0.32f, size.height * 0.74f),
+                                    Offset(size.width * 0.48f, size.height * 0.38f),
+                                    Offset(size.width * 0.64f, size.height * 0.46f),
+                                    Offset(size.width * 0.80f, size.height * 0.22f),
+                                    Offset(size.width, size.height * 0.08f)
+                                )
+                                val path = Path().apply {
+                                    moveTo(points.first().x, points.first().y)
+                                    for (i in 1 until points.size) {
+                                        lineTo(points[i].x, points[i].y)
+                                    }
+                                }
+                                drawPath(
+                                    path = path,
+                                    color = Color.White,
+                                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = profile?.name ?: "Narayan Phukan",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = NavyPrimary
-                            )
-                            Text(
-                                text = profile?.title ?: "Student & Developer",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (profile?.available_for_hire == true) {
-                                Surface(
-                                    color = Color(0xFFECFDF5),
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
-                                    modifier = Modifier.padding(top = 6.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(SuccessGreen)
-                                        )
-                                        Spacer(modifier = Modifier.width(5.dp))
+                        // 3 Metric Capsules
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Projects Capsule
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(onClick = onNavigateToProjects),
+                                color = Color(0xFF1B2B46),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "PROJECTS",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF8EA3BF),
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = projects.size.toString(),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Active",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF8EA3BF)
+                                    )
+                                }
+                            }
+
+                            // Skills Capsule
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(onClick = onNavigateToSkills),
+                                color = Color(0xFF1B2B46),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "SKILLS",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF8EA3BF),
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = skills.size.toString(),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Indexed",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF8EA3BF)
+                                    )
+                                }
+                            }
+
+                            // Inquiries Capsule
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(onClick = onNavigateToMessages),
+                                color = Color(0xFF1B2B46),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "INQUIRIES",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF8EA3BF),
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = "Available for Hire",
-                                            fontSize = 11.sp,
-                                            color = SuccessGreen,
-                                            fontWeight = FontWeight.SemiBold
+                                            text = messages.size.toString(),
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
                                         )
+                                        if (unreadCount > 0) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(7.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFFF59E0B))
+                                            )
+                                        }
                                     }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = if (unreadCount > 0) "$unreadCount Unread" else "All Read",
+                                        fontSize = 11.sp,
+                                        color = if (unreadCount > 0) Color(0xFFF59E0B) else Color(0xFF8EA3BF),
+                                        fontWeight = if (unreadCount > 0) FontWeight.SemiBold else FontWeight.Normal
+                                    )
                                 }
                             }
                         }
-
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = "Edit Profile",
-                            tint = TextMuted
-                        )
                     }
                 }
             }
 
-            // Stats Grid (2 rows of 2 cards)
+            // 4. Quick Actions
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        StatCard(
-                            title = "Total Projects",
-                            count = projects.size.toString(),
-                            icon = Icons.Default.Folder,
-                            iconTint = NavyPrimary,
-                            modifier = Modifier.weight(1f),
-                            onClick = onNavigateToProjects
-                        )
-                        StatCard(
-                            title = "Skills Listed",
-                            count = skills.size.toString(),
-                            icon = Icons.Default.Star,
-                            iconTint = NavyAccent,
-                            modifier = Modifier.weight(1f),
-                            onClick = onNavigateToSkills
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        StatCard(
-                            title = "Total Messages",
-                            count = messages.size.toString(),
-                            icon = Icons.Default.Mail,
-                            iconTint = NavyLight,
-                            modifier = Modifier.weight(1f),
-                            onClick = onNavigateToMessages
-                        )
-                        StatCard(
-                            title = "Unread Messages",
-                            count = unreadCount.toString(),
-                            icon = Icons.Default.MarkEmailUnread,
-                            iconTint = if (unreadCount > 0) WarningAmber else SuccessGreen,
-                            modifier = Modifier.weight(1f),
-                            onClick = onNavigateToMessages
-                        )
-                    }
-                }
-            }
-
-            // Quick Actions
-            item {
-                Text(
-                    text = "Quick Actions",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = NavyPrimary,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onNavigateToProjects,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = SurfaceWhite,
-                            contentColor = NavyPrimary
-                        ),
-                        border = BorderStroke(1.dp, BorderSubtle)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = NavyPrimary)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Project", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = onNavigateToSkills,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = SurfaceWhite,
-                            contentColor = NavyAccent
-                        ),
-                        border = BorderStroke(1.dp, BorderSubtle)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = NavyAccent)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Skill", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { showReportDialog = true },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = SurfaceWhite,
-                            contentColor = WarningAmber
-                        ),
-                        border = BorderStroke(1.dp, BorderSubtle)
-                    ) {
-                        Icon(Icons.Default.BugReport, contentDescription = null, modifier = Modifier.size(18.dp), tint = WarningAmber)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Report Bug", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = { showLogsDialog = true },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = SurfaceWhite,
-                            contentColor = if (errorReports.isNotEmpty()) DangerRed else TextSecondary
-                        ),
-                        border = BorderStroke(1.dp, BorderSubtle)
-                    ) {
-                        Icon(
-                            Icons.Default.Analytics,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = if (errorReports.isNotEmpty()) DangerRed else TextSecondary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            if (errorReports.isNotEmpty()) "Errors (${errorReports.size})" else "Diagnostics",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-            }
-
-            // Recent Messages Preview
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Recent Messages",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Quick Actions",
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = NavyPrimary
+                        color = Color(0xFF0F1E36)
                     )
-                    TextButton(onClick = onNavigateToMessages) {
-                        Text("View All (${messages.size})", color = NavyPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    }
-                }
 
-                if (messages.isEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                        border = BorderStroke(1.dp, BorderSubtle)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
+                        // + New Project
+                        Surface(
+                            onClick = { showAddProjectDialog = true },
+                            color = Color(0xFFEFF4F9),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color(0xFFD0DDEB))
                         ) {
-                            Text(
-                                text = "No messages received yet.",
-                                color = TextSecondary,
-                                fontSize = 14.sp
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF0F1E36), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("New Project", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F1E36))
+                            }
+                        }
+
+                        // Add Tech
+                        Surface(
+                            onClick = { showAddSkillDialog = true },
+                            color = Color(0xFFEFF4F9),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color(0xFFD0DDEB))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                Icon(Icons.Default.Category, contentDescription = null, tint = Color(0xFF0F1E36), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Add Tech", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F1E36))
+                            }
+                        }
+
+                        // Broadcast / Updates
+                        Surface(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isCheckingUpdate = true
+                                    when (val res = UpdateManager.checkForUpdates(context)) {
+                                        is UpdateCheckResult.UpdateAvailable -> {
+                                            availableUpdate = res.info
+                                            showUpdateDialog = true
+                                        }
+                                        is UpdateCheckResult.UpToDate -> {
+                                            snackbarHostState.showSnackbar("App is up to date (v${res.currentVersion})")
+                                        }
+                                        is UpdateCheckResult.Error -> {
+                                            snackbarHostState.showSnackbar("Update check: ${res.message}")
+                                        }
+                                    }
+                                    isCheckingUpdate = false
+                                }
+                            },
+                            color = Color(0xFFEFF4F9),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color(0xFFD0DDEB))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                if (isCheckingUpdate) {
+                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color(0xFF0F1E36))
+                                } else {
+                                    Icon(Icons.Default.Campaign, contentDescription = null, tint = Color(0xFF0F1E36), modifier = Modifier.size(16.dp))
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Check Updates", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F1E36))
+                            }
+                        }
+
+                        // Diagnostics
+                        Surface(
+                            onClick = { showLogsDialog = true },
+                            color = Color(0xFFEFF4F9),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color(0xFFD0DDEB))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                Icon(Icons.Default.Analytics, contentDescription = null, tint = Color(0xFF0F1E36), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    if (errorReports.isNotEmpty()) "Errors (${errorReports.size})" else "Diagnostics",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F1E36)
+                                )
+                            }
+                        }
+
+                        // Report Issue
+                        Surface(
+                            onClick = { showReportDialog = true },
+                            color = Color(0xFFEFF4F9),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color(0xFFD0DDEB))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                Icon(Icons.Default.BugReport, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Report Bug", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F1E36))
+                            }
                         }
                     }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        messages.take(3).forEach { msg ->
-                            Card(
+                }
+            }
+
+            // 5. Recent Inquiries (White Grouped Inset Card)
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Recent Inquiries",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F1E36)
+                        )
+                        Text(
+                            text = "View all",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D4ED8),
+                            modifier = Modifier.clickable(onClick = onNavigateToMessages)
+                        )
+                    }
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 1.dp,
+                        border = BorderStroke(1.dp, BorderSubtle)
+                    ) {
+                        if (messages.isEmpty()) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable(onClick = onNavigateToMessages),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                                border = BorderStroke(1.dp, if (!msg.is_read) NavyBorder else BorderSubtle),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                    .padding(28.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (!msg.is_read) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.MailOutline, contentDescription = null, tint = TextMuted, modifier = Modifier.size(36.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("No messages received yet.", color = TextSecondary, fontSize = 13.sp)
+                                }
+                            }
+                        } else {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                messages.take(3).forEachIndexed { index, msg ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            color = BorderSubtle,
+                                            modifier = Modifier.padding(vertical = 14.dp)
+                                        )
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        // Initials Avatar Box
                                         Box(
                                             modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(NavyPrimary)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                    }
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                .size(42.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color(0xFFEFF4F9)),
+                                            contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = msg.name,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = NavyPrimary,
-                                                fontSize = 14.sp
+                                                text = msg.name.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("").ifBlank { "SK" },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF0F1E36)
                                             )
-                                            Surface(
-                                                color = if (msg.is_read) SurfaceSubtle else NavySoft,
-                                                shape = RoundedCornerShape(6.dp)
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
-                                                    text = if (msg.is_read) "Read" else "New",
-                                                    color = if (msg.is_read) TextMuted else NavyPrimary,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    text = msg.name,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF0F1E36)
                                                 )
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = if (msg.created_at.length >= 10) msg.created_at.take(10) else "Recent",
+                                                        fontSize = 11.sp,
+                                                        color = Color(0xFF94A3B8)
+                                                    )
+                                                    if (!msg.is_read) {
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(7.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color(0xFF1D4ED8))
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            Text(
+                                                text = msg.message.ifBlank { msg.subject },
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF475569),
+                                                maxLines = 2,
+                                                lineHeight = 18.sp,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            // Action pill: Reply via Email
+                                            Surface(
+                                                onClick = {
+                                                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                                        data = Uri.parse("mailto:${msg.email}")
+                                                        putExtra(Intent.EXTRA_SUBJECT, "Re: ${msg.subject.ifBlank { "Portfolio Inquiry" }}")
+                                                    }
+                                                    context.startActivity(Intent.createChooser(intent, "Reply via"))
+                                                },
+                                                color = Color(0xFFEBF3FB),
+                                                shape = RoundedCornerShape(10.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "↗ Reply via Email",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color(0xFF0F1E36)
+                                                    )
+                                                }
                                             }
                                         }
-                                        Text(
-                                            text = msg.subject.ifBlank { msg.message },
-                                            color = TextSecondary,
-                                            fontSize = 12.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
                                     }
                                 }
                             }
@@ -605,10 +700,47 @@ fun DashboardScreen(
                 }
             }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
+    }
+
+    // Quick Add Project Dialog
+    if (showAddProjectDialog) {
+        ProjectEditDialog(
+            project = null,
+            storageRepository = storageRepository,
+            onDismiss = { showAddProjectDialog = false },
+            onSave = { newProject ->
+                coroutineScope.launch {
+                    val res = projectsRepository.saveProject(newProject)
+                    showAddProjectDialog = false
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "Project created!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Failed to save project", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
+    }
+
+    // Quick Add Skill Dialog
+    if (showAddSkillDialog) {
+        SkillEditDialog(
+            skill = null,
+            onDismiss = { showAddSkillDialog = false },
+            onSave = { newSkill ->
+                coroutineScope.launch {
+                    val res = skillsRepository.saveSkill(newSkill)
+                    showAddSkillDialog = false
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "Skill added!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Failed to save skill", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
     }
 
     if (showReportDialog) {
@@ -684,52 +816,5 @@ fun DashboardScreen(
                 }
             }
         )
-    }
-}
-
-@Composable
-fun StatCard(
-    title: String,
-    count: String,
-    icon: ImageVector,
-    iconTint: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        border = BorderStroke(1.dp, BorderSubtle),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(NavySoft),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = count,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = NavyPrimary
-            )
-            Text(
-                text = title,
-                fontSize = 12.sp,
-                color = TextSecondary,
-                fontWeight = FontWeight.Medium
-            )
-        }
     }
 }

@@ -4,19 +4,25 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.dp
 import com.narayan.portfolioadmin.data.repository.*
 import com.narayan.portfolioadmin.ui.navigation.Screen
 import com.narayan.portfolioadmin.ui.screens.dashboard.DashboardScreen
@@ -54,48 +60,18 @@ class MainActivity : ComponentActivity() {
                     containerColor = BackgroundCanvas,
                     bottomBar = {
                         if (showBottomBar) {
-                            NavigationBar(
-                                containerColor = SurfaceWhite,
-                                contentColor = TextPrimary,
-                                tonalElevation = 0.dp,
-                                modifier = Modifier.drawBehind {
-                                    drawLine(
-                                        color = BorderSubtle,
-                                        start = Offset(0f, 0f),
-                                        end = Offset(size.width, 0f),
-                                        strokeWidth = 1.dp.toPx()
-                                    )
+                            FloatingBottomNavigationBar(
+                                currentRoute = currentRoute,
+                                onNavigate = { route ->
+                                    navController.navigate(route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
-                            ) {
-                                Screen.bottomNavItems.forEach { screen ->
-                                    val isSelected = currentRoute == screen.route
-                                    NavigationBarItem(
-                                        selected = isSelected,
-                                        onClick = {
-                                            navController.navigate(screen.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        icon = {
-                                            screen.icon?.let { icon ->
-                                                Icon(icon, contentDescription = screen.title)
-                                            }
-                                        },
-                                        label = { Text(screen.title) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = NavyPrimary,
-                                            selectedTextColor = NavyPrimary,
-                                            unselectedIconColor = TextMuted,
-                                            unselectedTextColor = TextMuted,
-                                            indicatorColor = NavySoft
-                                        )
-                                    )
-                                }
-                            }
+                            )
                         }
                     }
                 ) { innerPadding ->
@@ -136,37 +112,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        val handleBack: () -> Unit = {
-                            if (!navController.popBackStack()) {
-                                navController.navigate(Screen.Dashboard.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        }
-
                         composable(Screen.Projects.route) {
                             ProjectsScreen(
                                 projectsRepository = projectsRepository,
-                                storageRepository = storageRepository,
-                                onBack = handleBack
+                                storageRepository = storageRepository
                             )
                         }
 
                         composable(Screen.Skills.route) {
                             SkillsScreen(
-                                skillsRepository = skillsRepository,
-                                onBack = handleBack
-                            )
-                        }
-
-                        composable(Screen.Messages.route) {
-                            MessagesScreen(
-                                messagesRepository = messagesRepository,
-                                onBack = handleBack
+                                skillsRepository = skillsRepository
                             )
                         }
 
@@ -174,9 +129,75 @@ class MainActivity : ComponentActivity() {
                             ProfileScreen(
                                 profileRepository = profileRepository,
                                 storageRepository = storageRepository,
-                                onBack = handleBack
+                                onBack = { navController.popBackStack() }
                             )
                         }
+
+                        composable(Screen.Messages.route) {
+                            MessagesScreen(
+                                messagesRepository = messagesRepository,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FloatingBottomNavigationBar(
+    currentRoute: String?,
+    onNavigate: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .height(68.dp),
+        shape = RoundedCornerShape(34.dp),
+        color = Color(0xFF0F1E36),
+        shadowElevation = 8.dp,
+        border = BorderStroke(1.dp, Color(0xFF223450))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 6.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Screen.bottomNavItems.forEach { screen ->
+                val isSelected = currentRoute == screen.route
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isSelected) Color(0xFF223450) else Color.Transparent)
+                        .clickable { onNavigate(screen.route) }
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        screen.icon?.let { icon ->
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = screen.title,
+                                tint = if (isSelected) Color.White else Color(0xFF8A99AD),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = screen.title,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else Color(0xFF8A99AD)
+                        )
                     }
                 }
             }

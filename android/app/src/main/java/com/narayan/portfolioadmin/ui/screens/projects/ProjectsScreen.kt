@@ -1,5 +1,6 @@
 package com.narayan.portfolioadmin.ui.screens.projects
 
+import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -8,26 +9,27 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,6 +40,8 @@ import com.narayan.portfolioadmin.data.repository.ProjectsRepository
 import com.narayan.portfolioadmin.data.repository.StorageRepository
 import com.narayan.portfolioadmin.ui.theme.*
 import kotlinx.coroutines.launch
+
+private val FILTER_TABS = listOf("All", "Featured", "Web", "Mobile")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,87 +54,221 @@ fun ProjectsScreen(
     val coroutineScope = rememberCoroutineScope()
     val projects by projectsRepository.getProjectsFlow().collectAsState(initial = emptyList())
 
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("All") }
     var showDialog by remember { mutableStateOf(false) }
     var editingProject by remember { mutableStateOf<Project?>(null) }
     var projectToDelete by remember { mutableStateOf<Project?>(null) }
 
+    val filteredProjects = remember(projects, searchQuery, selectedFilter) {
+        projects.filter { p ->
+            val matchesSearch = searchQuery.isBlank() ||
+                    p.title.contains(searchQuery, ignoreCase = true) ||
+                    p.tech_stack.any { it.contains(searchQuery, ignoreCase = true) } ||
+                    p.description.contains(searchQuery, ignoreCase = true)
+
+            val matchesFilter = when (selectedFilter) {
+                "Featured" -> p.featured
+                "Web" -> p.tech_stack.any { it.contains("Web", ignoreCase = true) || it.contains("React", ignoreCase = true) || it.contains("Next", ignoreCase = true) || it.contains("HTML", ignoreCase = true) } || p.title.contains("Web", ignoreCase = true) || p.description.contains("Web", ignoreCase = true)
+                "Mobile" -> p.tech_stack.any { it.contains("Mobile", ignoreCase = true) || it.contains("Android", ignoreCase = true) || it.contains("iOS", ignoreCase = true) || it.contains("Native", ignoreCase = true) || it.contains("Flutter", ignoreCase = true) } || p.title.contains("Mobile", ignoreCase = true) || p.description.contains("Mobile", ignoreCase = true)
+                else -> true
+            }
+
+            matchesSearch && matchesFilter
+        }
+    }
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Projects (${projects.size})",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = NavyPrimary
-                    )
-                },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = NavyPrimary
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
-                modifier = Modifier.drawBehind {
-                    drawLine(
-                        color = BorderSubtle,
-                        start = Offset(0f, size.height),
-                        end = Offset(size.width, size.height),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                }
-            )
-        },
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = {
                     editingProject = null
                     showDialog = true
                 },
-                containerColor = NavyPrimary,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Project")
-            }
+                containerColor = Color(0xFF0F1E36),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(50),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                icon = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.White) },
+                text = { Text("Add Project", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                modifier = Modifier.padding(bottom = 80.dp, end = 8.dp)
+            )
         },
         containerColor = BackgroundCanvas
     ) { padding ->
-        if (projects.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = NavyPrimary)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item { Spacer(modifier = Modifier.height(10.dp)) }
+
+            // 1. Header: "PORTFOLIO" / "Projects" / "N shown"
+            item {
+                Column {
+                    Text(
+                        text = "PORTFOLIO",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF8A99AD),
+                        letterSpacing = 1.2.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Projects",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F1E36)
+                        )
+                        Text(
+                            text = "${filteredProjects.size} shown",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF8A99AD)
+                        )
+                    }
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item { Spacer(modifier = Modifier.height(4.dp)) }
-                items(projects, key = { it.id }) { project ->
-                    ProjectCard(
+
+            // 2. Search Bar
+            item {
+                Surface(
+                    color = Color(0xFFF8FAFC),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, BorderSubtle),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Color(0xFF8A99AD),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search projects or tech...",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 14.sp
+                                )
+                            }
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    color = Color(0xFF0F1E36),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { searchQuery = "" },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = Color(0xFF8A99AD),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Segmented Filter Control
+            item {
+                Surface(
+                    color = Color(0xFFF1F5F9),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        FILTER_TABS.forEach { tab ->
+                            val isSelected = selectedFilter == tab
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) Color(0xFF0F1E36) else Color.Transparent)
+                                    .clickable { selectedFilter = tab }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = tab,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else Color(0xFF64748B)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Projects Cards
+            if (filteredProjects.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = TextMuted, modifier = Modifier.size(48.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = if (searchQuery.isNotBlank()) "No projects matching '$searchQuery'" else "No projects in this category.",
+                                color = TextSecondary,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(filteredProjects, key = { it.id }) { project ->
+                    ProjectCardItem(
                         project = project,
                         onEdit = {
                             editingProject = project
                             showDialog = true
                         },
+                        onToggleVisibility = {
+                            coroutineScope.launch {
+                                val updated = project.copy(featured = !project.featured)
+                                projectsRepository.saveProject(updated)
+                            }
+                        },
                         onDelete = { projectToDelete = project }
                     )
                 }
-                item { Spacer(modifier = Modifier.height(72.dp)) }
             }
+
+            item { Spacer(modifier = Modifier.height(110.dp)) }
         }
     }
 
@@ -160,7 +298,7 @@ fun ProjectsScreen(
                 Text(
                     text = "Delete Project",
                     fontWeight = FontWeight.Bold,
-                    color = NavyPrimary
+                    color = Color(0xFF0F1E36)
                 )
             },
             text = {
@@ -179,7 +317,7 @@ fun ProjectsScreen(
                         }
                     }
                 ) {
-                    Text("Delete", color = DangerRed, fontWeight = FontWeight.SemiBold)
+                    Text("Delete", color = DangerRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -193,30 +331,87 @@ fun ProjectsScreen(
 }
 
 @Composable
-fun ProjectCard(
+fun ProjectCardItem(
     project: Project,
     onEdit: () -> Unit,
+    onToggleVisibility: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
+    val context = LocalContext.current
+
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        border = BorderStroke(1.dp, BorderSubtle),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, BorderSubtle)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            if (project.image_url.isNotBlank()) {
-                AsyncImage(
-                    model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(project.image_url),
-                    contentDescription = project.title,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp),
-                    contentScale = ContentScale.Crop
-                )
+            // Top Cover Image with Floating Badges
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .background(Color(0xFFE2E8F0))
+            ) {
+                if (project.image_url.isNotBlank()) {
+                    AsyncImage(
+                        model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(project.image_url),
+                        contentDescription = project.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Image, contentDescription = null, tint = TextMuted, modifier = Modifier.size(48.dp))
+                    }
+                }
+
+                // Top-Right: Featured Badge
+                if (project.featured) {
+                    Surface(
+                        color = Color(0xDD0F1E36),
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "★ Featured",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                } else {
+                    // Top-Left: Hidden / Draft Badge (matches Image 3)
+                    Surface(
+                        color = Color(0xDD1E293B),
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Hidden",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
             }
 
+            // Card Body
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -225,72 +420,133 @@ fun ProjectCard(
                 ) {
                     Text(
                         text = project.title,
-                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = NavyPrimary,
+                        color = Color(0xFF0F1E36),
                         modifier = Modifier.weight(1f)
                     )
-                    if (project.featured) {
-                        Surface(
-                            color = Color(0xFFFEF3C7),
-                            shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, Color(0xFFFDE68A))
-                        ) {
-                            Text(
-                                text = "★ Featured",
-                                color = WarningAmber,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (project.github_url.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    try {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(project.github_url)))
+                                    } catch (_: Exception) {}
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Code, contentDescription = "GitHub", tint = Color(0xFF0F1E36), modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        if (project.live_url.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    try {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(project.live_url)))
+                                    } catch (_: Exception) {}
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Live Demo", tint = Color(0xFF0F1E36), modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
 
                 if (project.description.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = project.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        color = Color(0xFF64748B),
                         maxLines = 2,
+                        lineHeight = 18.sp,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
+                // Tech Stack Tags
                 if (project.tech_stack.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(10.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(project.tech_stack) { tech ->
                             Surface(
-                                color = NavySoft,
-                                shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(1.dp, NavyBorder.copy(alpha = 0.5f))
+                                color = Color.White,
+                                shape = RoundedCornerShape(50),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1))
                             ) {
                                 Text(
                                     text = tech,
-                                    color = NavyPrimary,
+                                    color = Color(0xFF0F1E36),
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = BorderSubtle)
+                Spacer(modifier = Modifier.height(4.dp))
 
+                // Card Footer: 3 Actions (Edit Details, Visible/Hidden, Delete)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = NavyPrimary)
+                    // 1. Edit Details
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onEdit)
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF0F1E36), modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("Edit Details", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F1E36))
                     }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRed)
+
+                    Box(modifier = Modifier.width(1.dp).height(16.dp).background(BorderSubtle))
+
+                    // 2. Visible / Hidden Toggle
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onToggleVisibility)
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (project.featured) {
+                            Icon(Icons.Default.Visibility, contentDescription = null, tint = Color(0xFF0F1E36), modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Visible", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F1E36))
+                        } else {
+                            Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = DangerRed, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Hidden", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DangerRed)
+                        }
+                    }
+
+                    Box(modifier = Modifier.width(1.dp).height(16.dp).background(BorderSubtle))
+
+                    // 3. Delete Action
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onDelete)
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("Delete", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF64748B))
                     }
                 }
             }
@@ -331,25 +587,25 @@ fun ProjectEditDialog(
                 isUploading = false
                 if (result.isSuccess) {
                     imageUrl = result.getOrThrow()
-                    Toast.makeText(context, "Image processed successfully!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Image processed!", Toast.LENGTH_SHORT).show()
                 } else {
                     val err = result.exceptionOrNull()?.localizedMessage ?: "Failed to upload image"
-                    Toast.makeText(context, "Image error: $err", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Error: $err", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = NavyPrimary,
+        focusedBorderColor = Color(0xFF0F1E36),
         unfocusedBorderColor = BorderSubtle,
-        focusedLabelColor = NavyPrimary,
+        focusedLabelColor = Color(0xFF0F1E36),
         unfocusedLabelColor = TextSecondary,
         focusedTextColor = TextPrimary,
         unfocusedTextColor = TextPrimary,
         focusedContainerColor = SurfaceWhite,
         unfocusedContainerColor = SurfaceWhite,
-        cursorColor = NavyPrimary
+        cursorColor = Color(0xFF0F1E36)
     )
 
     AlertDialog(
@@ -359,7 +615,7 @@ fun ProjectEditDialog(
                 text = if (project == null) "Add Project" else "Edit Project",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = NavyPrimary
+                color = Color(0xFF0F1E36)
             )
         },
         text = {
@@ -392,16 +648,16 @@ fun ProjectEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     border = BorderStroke(1.dp, BorderSubtle),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NavyPrimary)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F1E36))
                 ) {
                     if (isUploading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = NavyPrimary)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF0F1E36))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Processing Image...")
                     } else {
-                        Icon(Icons.Default.Upload, contentDescription = null, tint = NavyPrimary)
+                        Icon(Icons.Default.Upload, contentDescription = null, tint = Color(0xFF0F1E36))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (imageUrl.isBlank()) "Upload Image" else "Change Image")
+                        Text(if (imageUrl.isBlank()) "Upload Cover Image" else "Change Cover Image")
                     }
                 }
 
@@ -450,7 +706,7 @@ fun ProjectEditDialog(
                     value = techStackInput,
                     onValueChange = { techStackInput = it },
                     label = { Text("Tech Stack (comma-separated)") },
-                    placeholder = { Text("React, Node.js, PostgreSQL") },
+                    placeholder = { Text("React, TypeScript, Node.js, PostgreSQL") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
@@ -492,13 +748,13 @@ fun ProjectEditDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Featured Project", color = TextPrimary, fontWeight = FontWeight.Medium)
+                    Text("Featured / Visible", color = TextPrimary, fontWeight = FontWeight.Medium)
                     Switch(
                         checked = featured,
                         onCheckedChange = { featured = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = NavyPrimary,
+                            checkedTrackColor = Color(0xFF0F1E36),
                             uncheckedThumbColor = TextMuted,
                             uncheckedTrackColor = SurfaceSubtle
                         )
@@ -528,7 +784,7 @@ fun ProjectEditDialog(
                     }
                 },
                 enabled = title.isNotBlank() && !isUploading,
-                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F1E36))
             ) {
                 Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold)
             }

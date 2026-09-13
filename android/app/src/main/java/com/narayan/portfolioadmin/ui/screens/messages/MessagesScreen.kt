@@ -146,7 +146,7 @@ fun MessagesScreen(
                         onDelete = { messageToDelete = msg }
                     )
                 }
-                item { Spacer(modifier = Modifier.height(32.dp)) }
+                item { Spacer(modifier = Modifier.height(100.dp)) }
             }
         }
     }
