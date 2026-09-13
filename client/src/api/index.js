@@ -183,7 +183,7 @@ export const analyticsAPI = {
   recordVisit: async () => {
     try {
       // 1. Record event in visits collection
-      fetch(`${FIRESTORE_BASE}/visits`, {
+      await fetch(`${FIRESTORE_BASE}/visits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(toFirestoreFields({
@@ -191,19 +191,20 @@ export const analyticsAPI = {
           referrer: document.referrer || 'direct',
           timestamp: new Date().toISOString()
         }))
-      }).catch(() => {});
+      });
 
       // 2. Fetch current total and increment
       const summary = await analyticsAPI.getSummary();
-      const currentTotal = summary?.total_visits ? parseInt(summary.total_visits, 10) : 12895;
+      const currentTotal = summary?.total_visits ? parseInt(summary.total_visits, 10) : 0;
       const newTotal = currentTotal + 1;
 
-      await fetch(`${FIRESTORE_BASE}/analytics/summary?updateMask.fieldPaths=total_visits&updateMask.fieldPaths=last_updated`, {
+      await fetch(`${FIRESTORE_BASE}/analytics/summary?updateMask.fieldPaths=total_visits&updateMask.fieldPaths=this_month_visits&updateMask.fieldPaths=last_updated`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fields: {
             total_visits: { integerValue: String(newTotal) },
+            this_month_visits: { integerValue: String(newTotal) },
             last_updated: { stringValue: new Date().toISOString() }
           }
         })

@@ -250,7 +250,7 @@ fun DashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                val totalVisitsCount = (analyticsSummary?.total_visits ?: 12895L) + messages.size
+                                val totalVisitsCount = (analyticsSummary?.total_visits ?: 0L) + messages.size
                                 Text(
                                     text = String.format(Locale.US, "%,d", totalVisitsCount),
                                     fontSize = 36.sp,
@@ -259,8 +259,12 @@ fun DashboardScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val rawGrowth = analyticsSummary?.monthly_growth?.ifBlank { "↑ 23.6%" } ?: "↑ 23.6%"
-                                    val formattedGrowth = if (rawGrowth.startsWith("+")) "↑ ${rawGrowth.removePrefix("+").trim()}" else rawGrowth
+                                    val rawGrowth = analyticsSummary?.monthly_growth?.ifBlank { "Active" } ?: "Active"
+                                    val formattedGrowth = when {
+                                        rawGrowth.startsWith("+") -> "↑ ${rawGrowth.removePrefix("+").trim()}"
+                                        rawGrowth.startsWith("↑") -> rawGrowth
+                                        else -> rawGrowth
+                                    }
                                     Text(
                                         text = formattedGrowth,
                                         fontSize = 12.sp,
@@ -277,24 +281,25 @@ fun DashboardScreen(
                             }
 
                             // Dynamic Sparkline Canvas Chart
-                            val trendData: List<Float> = remember(analyticsSummary?.sparkline_trend) {
+                            val trendData: List<Float> = remember(analyticsSummary?.sparkline_trend, analyticsSummary?.total_visits) {
                                 val list = analyticsSummary?.sparkline_trend
-                                if (list != null && list.size >= 2) list else listOf(45f, 58f, 52f, 74f, 68f, 85f, 96f)
+                                if (list != null && list.size >= 2) list else listOf(0f, 0f, 0f, 0f, 0f, 0f, (analyticsSummary?.total_visits ?: 0L).toFloat())
                             }
 
                             Canvas(modifier = Modifier.width(110.dp).height(48.dp)) {
                                 val minVal: Float = trendData.minOrNull() ?: 0f
-                                val maxVal: Float = trendData.maxOrNull() ?: 100f
-                                val range: Float = (maxVal - minVal).coerceAtLeast(1f)
-                                val topPadding = size.height * 0.12f
-                                val bottomPadding = size.height * 0.12f
+                                val maxVal: Float = trendData.maxOrNull() ?: 0f
+                                val hasSpread = maxVal > minVal
+                                val range: Float = if (hasSpread) (maxVal - minVal) else 1f
+                                val topPadding = size.height * 0.15f
+                                val bottomPadding = size.height * 0.15f
                                 val drawableHeight = size.height - topPadding - bottomPadding
                                 val stepX = size.width / (trendData.size - 1).coerceAtLeast(1)
 
                                 val path = Path()
                                 trendData.forEachIndexed { index: Int, value: Float ->
                                     val x = index.toFloat() * stepX
-                                    val normalized = (value - minVal) / range
+                                    val normalized = if (hasSpread) (value - minVal) / range else 0.5f
                                     val y = size.height - bottomPadding - (normalized * drawableHeight)
                                     if (index == 0) {
                                         path.moveTo(x, y)

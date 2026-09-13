@@ -21,9 +21,8 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
+import java.util.*
+
 
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -351,37 +350,74 @@ class AnalyticsRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
     fun getAnalyticsFlow(): Flow<AnalyticsSummary?> = callbackFlow {
-        val listener = firestore.collection("analytics").document("summary")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(null)
-                    return@addSnapshotListener
+        val visitsListener = firestore.collection("visits")
+            .addSnapshotListener { vSnapshot, _ ->
+                val realVisitsCount = vSnapshot?.size()?.toLong() ?: 0L
+
+                val dayCounts = FloatArray(7) { 0f }
+                val now = Calendar.getInstance()
+                val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+
+                vSnapshot?.documents?.forEach { doc ->
+                    val tsStr = doc.getString("timestamp") ?: ""
+                    try {
+                        if (tsStr.length >= 19) {
+                            val visitDate = isoFormat.parse(tsStr.substring(0, 19))
+                            if (visitDate != null) {
+                                val diffMillis = now.timeInMillis - visitDate.time
+                                val diffDays = (diffMillis / (1000 * 60 * 60 * 24)).toInt()
+                                if (diffDays in 0..6) {
+                                    val index = 6 - diffDays
+                                    dayCounts[index] += 1f
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
                 }
-                if (snapshot == null || !snapshot.exists()) {
-                    trySend(null)
-                    return@addSnapshotListener
+
+                if (dayCounts.all { it == 0f } && realVisitsCount > 0) {
+                    dayCounts[6] = realVisitsCount.toFloat()
                 }
-                try {
-                    val totalVisits = snapshot.getLong("total_visits") ?: 12895L
-                    val monthlyGrowth = snapshot.getString("monthly_growth") ?: "+ 23.6%"
-                    val thisMonthVisits = snapshot.getLong("this_month_visits") ?: 3120L
-                    val rawTrend = snapshot.get("sparkline_trend") as? List<*>
-                    val trendList = rawTrend?.mapNotNull { (it as? Number)?.toFloat() }
-                        ?.takeIf { it.isNotEmpty() }
-                        ?: listOf(45f, 58f, 52f, 74f, 68f, 85f, 96f)
-                    val lastUpdated = snapshot.getString("last_updated") ?: ""
-                    trySend(AnalyticsSummary(
-                        total_visits = totalVisits,
-                        monthly_growth = monthlyGrowth,
-                        this_month_visits = thisMonthVisits,
-                        sparkline_trend = trendList,
-                        last_updated = lastUpdated
-                    ))
-                } catch (e: Exception) {
-                    trySend(AnalyticsSummary())
-                }
+
+                firestore.collection("analytics").document("summary").get()
+                    .addOnSuccessListener { sSnapshot ->
+                        val summaryVisits = sSnapshot?.getLong("total_visits") ?: 0L
+                        val totalVisits = maxOf(realVisitsCount, summaryVisits)
+                        val monthlyGrowth = sSnapshot?.getString("monthly_growth")
+                            ?.takeIf { it.isNotBlank() && it != "+ 23.6%" }
+                            ?: if (totalVisits > 0) "↑ 100%" else "0%"
+                        val thisMonthVisits = sSnapshot?.getLong("this_month_visits")
+                            ?.takeIf { it != 3120L }
+                            ?: totalVisits
+
+                        val rawTrend = sSnapshot?.get("sparkline_trend") as? List<*>
+                        val trendList = if (dayCounts.any { it > 0f }) {
+                            dayCounts.toList()
+                        } else {
+                            rawTrend?.mapNotNull { (it as? Number)?.toFloat() }
+                                ?.takeIf { it.isNotEmpty() && it != listOf(45f, 58f, 52f, 74f, 68f, 85f, 96f) }
+                                ?: dayCounts.toList()
+                        }
+
+                        trySend(AnalyticsSummary(
+                            total_visits = totalVisits,
+                            monthly_growth = monthlyGrowth,
+                            this_month_visits = thisMonthVisits,
+                            sparkline_trend = trendList,
+                            last_updated = sSnapshot?.getString("last_updated") ?: ""
+                        ))
+                    }
+                    .addOnFailureListener {
+                        trySend(AnalyticsSummary(
+                            total_visits = realVisitsCount,
+                            monthly_growth = if (realVisitsCount > 0) "↑ 100%" else "0%",
+                            this_month_visits = realVisitsCount,
+                            sparkline_trend = dayCounts.toList()
+                        ))
+                    }
             }
-        awaitClose { listener.remove() }
+
+        awaitClose { visitsListener.remove() }
     }
 }
 
