@@ -1,13 +1,13 @@
 package com.narayan.portfolioadmin.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -47,7 +47,8 @@ fun ErrorLogViewerDialog(
                 .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.85f),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+            colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+            border = BorderStroke(1.dp, BorderSubtle)
         ) {
             Column(
                 modifier = Modifier
@@ -67,20 +68,20 @@ fun ErrorLogViewerDialog(
                             tint = DangerRed,
                             modifier = Modifier.size(24.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "Error Logs & Telemetry (${reports.size})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = NavyPrimary
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextMuted)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 if (reports.isEmpty()) {
                     Box(
@@ -90,9 +91,9 @@ fun ErrorLogViewerDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("No errors or crashes detected!", color = SuccessGreen, fontWeight = FontWeight.SemiBold)
+                            Text("No errors or crashes detected!", color = SuccessGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("App is running healthy and clean.", color = TextMuted, fontSize = 12.sp)
+                            Text("App is running healthy and clean.", color = TextSecondary, fontSize = 13.sp)
                         }
                     }
                 } else {
@@ -104,10 +105,10 @@ fun ErrorLogViewerDialog(
                     ) {
                         items(reports, key = { it.id }) { report ->
                             val isExpanded = selectedReport?.id == report.id
-                            val typeColor = when (report.error_type) {
-                                "CRASH" -> DangerRed
-                                "NON_FATAL" -> WarningAmber
-                                else -> AccentCyan
+                            val (badgeBg, badgeColor) = when (report.error_type) {
+                                "CRASH" -> Color(0xFFFEF2F2) to DangerRed
+                                "NON_FATAL" -> Color(0xFFFFFBEB) to WarningAmber
+                                else -> NavySoft to NavyPrimary
                             }
 
                             Card(
@@ -115,7 +116,8 @@ fun ErrorLogViewerDialog(
                                     .fillMaxWidth()
                                     .clickable { selectedReport = if (isExpanded) null else report },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = CardDark)
+                                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                                border = BorderStroke(1.dp, if (isExpanded) NavyBorder else BorderSubtle)
                             ) {
                                 Column(modifier = Modifier.padding(14.dp)) {
                                     Row(
@@ -124,12 +126,12 @@ fun ErrorLogViewerDialog(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Surface(
-                                            color = typeColor.copy(alpha = 0.2f),
+                                            color = badgeBg,
                                             shape = RoundedCornerShape(6.dp)
                                         ) {
                                             Text(
                                                 text = report.error_type,
-                                                color = typeColor,
+                                                color = badgeColor,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -149,7 +151,7 @@ fun ErrorLogViewerDialog(
                                         text = report.title,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = TextPrimary,
+                                        color = NavyPrimary,
                                         maxLines = if (isExpanded) 10 else 2,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -166,11 +168,11 @@ fun ErrorLogViewerDialog(
 
                                     if (isExpanded) {
                                         Spacer(modifier = Modifier.height(10.dp))
-                                        HorizontalDivider(color = BackgroundDark)
+                                        HorizontalDivider(color = BorderSubtle)
                                         Spacer(modifier = Modifier.height(10.dp))
 
                                         if (report.device_info.isNotBlank()) {
-                                            Text("Device:", color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text("Device:", color = NavyPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                             Text(report.device_info, color = TextSecondary, fontSize = 11.sp)
                                             Spacer(modifier = Modifier.height(6.dp))
                                         }
@@ -181,12 +183,13 @@ fun ErrorLogViewerDialog(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(BackgroundDark)
+                                                    .background(SurfaceSubtle)
+                                                    .border(1.dp, BorderSubtle, RoundedCornerShape(8.dp))
                                                     .padding(8.dp)
                                             ) {
                                                 Text(
                                                     text = report.stack_trace,
-                                                    color = TextMuted,
+                                                    color = TextSecondary,
                                                     fontSize = 10.sp,
                                                     fontFamily = FontFamily.Monospace,
                                                     lineHeight = 13.sp
@@ -202,15 +205,15 @@ fun ErrorLogViewerDialog(
                                         ) {
                                             if (report.status != "resolved") {
                                                 TextButton(onClick = { onMarkResolved(report.id) }) {
-                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = SuccessGreen)
                                                     Spacer(modifier = Modifier.width(4.dp))
-                                                    Text("Resolve", color = SuccessGreen, fontSize = 12.sp)
+                                                    Text("Resolve", color = SuccessGreen, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                                 }
                                             }
                                             TextButton(onClick = { onDelete(report.id) }) {
-                                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = DangerRed)
                                                 Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Delete", color = DangerRed, fontSize = 12.sp)
+                                                Text("Delete", color = DangerRed, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                     }

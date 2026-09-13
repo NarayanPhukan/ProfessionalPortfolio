@@ -16,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -107,7 +109,8 @@ fun DashboardScreen(
                         Text(
                             text = "Admin Dashboard",
                             style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary
+                            fontWeight = FontWeight.Bold,
+                            color = NavyPrimary
                         )
                         Text(
                             text = "Live Portfolio Control",
@@ -140,20 +143,20 @@ fun DashboardScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
-                                color = AccentCyan
+                                color = NavyPrimary
                             )
                         } else {
                             BadgedBox(
                                 badge = {
                                     if (availableUpdate != null) {
-                                        Badge(containerColor = AccentCyan)
+                                        Badge(containerColor = NavyAccent)
                                     }
                                 }
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.SystemUpdate,
                                     contentDescription = "Check for Updates",
-                                    tint = if (availableUpdate != null) AccentCyan else TextMuted
+                                    tint = if (availableUpdate != null) NavyAccent else TextSecondary
                                 )
                             }
                         }
@@ -169,15 +172,23 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Logout,
                             contentDescription = "Sign Out",
-                            tint = TextMuted
+                            tint = TextSecondary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = BorderSubtle,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = BackgroundDark
+        containerColor = BackgroundCanvas
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -186,6 +197,8 @@ fun DashboardScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item { Spacer(modifier = Modifier.height(4.dp)) }
+
             // Update Available Alert Banner
             if (availableUpdate != null) {
                 item {
@@ -194,8 +207,8 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .clickable { showUpdateDialog = true },
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = AccentCyan.copy(alpha = 0.12f)),
-                        border = BorderStroke(1.dp, AccentCyan.copy(alpha = 0.4f))
+                        colors = CardDefaults.cardColors(containerColor = NavySoft),
+                        border = BorderStroke(1.dp, NavyBorder)
                     ) {
                         Row(
                             modifier = Modifier
@@ -207,13 +220,13 @@ fun DashboardScreen(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(AccentCyan.copy(alpha = 0.2f)),
+                                    .background(NavyPrimary.copy(alpha = 0.12f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.SystemUpdate,
                                     contentDescription = null,
-                                    tint = AccentCyan,
+                                    tint = NavyPrimary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -223,7 +236,7 @@ fun DashboardScreen(
                                     text = "Update Available: v${availableUpdate?.versionName}",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
-                                    color = AccentCyan
+                                    color = NavyPrimary
                                 )
                                 Text(
                                     text = "Tap to view changelog & update",
@@ -233,14 +246,14 @@ fun DashboardScreen(
                             }
                             Button(
                                 onClick = { showUpdateDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     text = "Update",
-                                    color = Color.Black,
-                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
                                     fontSize = 12.sp
                                 )
                             }
@@ -248,14 +261,17 @@ fun DashboardScreen(
                     }
                 }
             }
+
             // Profile Summary Header Card
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onNavigateToProfile),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                    border = BorderStroke(1.dp, BorderSubtle),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -278,7 +294,7 @@ fun DashboardScreen(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(CircleShape)
-                                    .background(PrimaryIndigo),
+                                    .background(NavyPrimary),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -297,7 +313,7 @@ fun DashboardScreen(
                                 text = profile?.name ?: "Narayan Phukan",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = NavyPrimary
                             )
                             Text(
                                 text = profile?.title ?: "Student & Developer",
@@ -307,23 +323,30 @@ fun DashboardScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             if (profile?.available_for_hire == true) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(top = 4.dp)
+                                Surface(
+                                    color = Color(0xFFECFDF5),
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                                    modifier = Modifier.padding(top = 6.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(SuccessGreen)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Available for Hire",
-                                        fontSize = 11.sp,
-                                        color = SuccessGreen,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(SuccessGreen)
+                                        )
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            text = "Available for Hire",
+                                            fontSize = 11.sp,
+                                            color = SuccessGreen,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -348,7 +371,7 @@ fun DashboardScreen(
                             title = "Total Projects",
                             count = projects.size.toString(),
                             icon = Icons.Default.Folder,
-                            iconTint = PrimaryIndigo,
+                            iconTint = NavyPrimary,
                             modifier = Modifier.weight(1f),
                             onClick = onNavigateToProjects
                         )
@@ -356,7 +379,7 @@ fun DashboardScreen(
                             title = "Skills Listed",
                             count = skills.size.toString(),
                             icon = Icons.Default.Star,
-                            iconTint = AccentCyan,
+                            iconTint = NavyAccent,
                             modifier = Modifier.weight(1f),
                             onClick = onNavigateToSkills
                         )
@@ -369,7 +392,7 @@ fun DashboardScreen(
                             title = "Total Messages",
                             count = messages.size.toString(),
                             icon = Icons.Default.Mail,
-                            iconTint = AccentPurple,
+                            iconTint = NavyLight,
                             modifier = Modifier.weight(1f),
                             onClick = onNavigateToMessages
                         )
@@ -390,39 +413,42 @@ fun DashboardScreen(
                 Text(
                     text = "Quick Actions",
                     style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    fontWeight = FontWeight.Bold,
+                    color = NavyPrimary,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = onNavigateToProjects,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = CardDark,
-                            contentColor = PrimaryIndigo
-                        )
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = SurfaceWhite,
+                            contentColor = NavyPrimary
+                        ),
+                        border = BorderStroke(1.dp, BorderSubtle)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = NavyPrimary)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Project")
+                        Text("Add Project", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
 
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = onNavigateToSkills,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = CardDark,
-                            contentColor = AccentCyan
-                        )
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = SurfaceWhite,
+                            contentColor = NavyAccent
+                        ),
+                        border = BorderStroke(1.dp, BorderSubtle)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = NavyAccent)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Skill")
+                        Text("Add Skill", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
 
@@ -432,32 +458,43 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = { showReportDialog = true },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = CardDark,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = SurfaceWhite,
                             contentColor = WarningAmber
-                        )
+                        ),
+                        border = BorderStroke(1.dp, BorderSubtle)
                     ) {
-                        Icon(Icons.Default.BugReport, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.BugReport, contentDescription = null, modifier = Modifier.size(18.dp), tint = WarningAmber)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Report Bug")
+                        Text("Report Bug", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
 
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = { showLogsDialog = true },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = CardDark,
-                            contentColor = if (errorReports.isNotEmpty()) DangerRed else TextPrimary
-                        )
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = SurfaceWhite,
+                            contentColor = if (errorReports.isNotEmpty()) DangerRed else TextSecondary
+                        ),
+                        border = BorderStroke(1.dp, BorderSubtle)
                     ) {
-                        Icon(Icons.Default.Analytics, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.Analytics,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = if (errorReports.isNotEmpty()) DangerRed else TextSecondary
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (errorReports.isNotEmpty()) "Errors (${errorReports.size})" else "Diagnostics")
+                        Text(
+                            if (errorReports.isNotEmpty()) "Errors (${errorReports.size})" else "Diagnostics",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
@@ -474,10 +511,11 @@ fun DashboardScreen(
                     Text(
                         text = "Recent Messages",
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary
+                        fontWeight = FontWeight.Bold,
+                        color = NavyPrimary
                     )
                     TextButton(onClick = onNavigateToMessages) {
-                        Text("View All (${messages.size})", color = PrimaryIndigo, fontSize = 13.sp)
+                        Text("View All (${messages.size})", color = NavyPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
 
@@ -485,7 +523,8 @@ fun DashboardScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+                        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                        border = BorderStroke(1.dp, BorderSubtle)
                     ) {
                         Box(
                             modifier = Modifier
@@ -495,7 +534,7 @@ fun DashboardScreen(
                         ) {
                             Text(
                                 text = "No messages received yet.",
-                                color = TextMuted,
+                                color = TextSecondary,
                                 fontSize = 14.sp
                             )
                         }
@@ -508,9 +547,9 @@ fun DashboardScreen(
                                     .fillMaxWidth()
                                     .clickable(onClick = onNavigateToMessages),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (!msg.is_read) CardDark else SurfaceDark
-                                )
+                                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                                border = BorderStroke(1.dp, if (!msg.is_read) NavyBorder else BorderSubtle),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -523,7 +562,7 @@ fun DashboardScreen(
                                             modifier = Modifier
                                                 .size(8.dp)
                                                 .clip(CircleShape)
-                                                .background(WarningAmber)
+                                                .background(NavyPrimary)
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                     }
@@ -535,15 +574,21 @@ fun DashboardScreen(
                                             Text(
                                                 text = msg.name,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = TextPrimary,
+                                                color = NavyPrimary,
                                                 fontSize = 14.sp
                                             )
-                                            Text(
-                                                text = if (msg.is_read) "Read" else "New",
-                                                color = if (msg.is_read) TextMuted else WarningAmber,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
+                                            Surface(
+                                                color = if (msg.is_read) SurfaceSubtle else NavySoft,
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (msg.is_read) "Read" else "New",
+                                                    color = if (msg.is_read) TextMuted else NavyPrimary,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
                                         }
                                         Text(
                                             text = msg.subject.ifBlank { msg.message },
@@ -654,7 +699,9 @@ fun StatCard(
     Card(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        border = BorderStroke(1.dp, BorderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -665,7 +712,7 @@ fun StatCard(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(iconTint.copy(alpha = 0.15f)),
+                    .background(NavySoft),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
@@ -675,12 +722,13 @@ fun StatCard(
                 text = count,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = NavyPrimary
             )
             Text(
                 text = title,
                 fontSize = 12.sp,
-                color = TextSecondary
+                color = TextSecondary,
+                fontWeight = FontWeight.Medium
             )
         }
     }

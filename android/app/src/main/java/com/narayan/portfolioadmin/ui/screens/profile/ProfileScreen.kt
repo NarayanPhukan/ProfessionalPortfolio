@@ -5,7 +5,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +24,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -124,7 +128,8 @@ fun ProfileScreen(
                     github_url = githubUrl.trim(),
                     linkedin_url = linkedinUrl.trim(),
                     instagram_url = instagramUrl.trim(),
-                    available_for_hire = availableForHire
+                    available_for_hire = availableForHire,
+                    updated_at = ""
                 )
                 val res = profileRepository.updateProfile(updated)
                 isSaving = false
@@ -138,16 +143,35 @@ fun ProfileScreen(
         }
     }
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = NavyPrimary,
+        unfocusedBorderColor = BorderSubtle,
+        focusedLabelColor = NavyPrimary,
+        unfocusedLabelColor = TextSecondary,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedContainerColor = SurfaceWhite,
+        unfocusedContainerColor = SurfaceWhite,
+        cursorColor = NavyPrimary
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Edit Profile", color = TextPrimary) },
+                title = {
+                    Text(
+                        text = "Edit Profile",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = NavyPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = TextPrimary
+                            tint = NavyPrimary
                         )
                     }
                 },
@@ -158,7 +182,7 @@ fun ProfileScreen(
                     ) {
                         if (isSaving) {
                             CircularProgressIndicator(
-                                color = PrimaryIndigo,
+                                color = NavyPrimary,
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp
                             )
@@ -166,16 +190,24 @@ fun ProfileScreen(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Save Profile",
-                                tint = if (name.isNotBlank()) PrimaryIndigo else TextMuted
+                                tint = if (name.isNotBlank()) NavyPrimary else TextMuted
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = BorderSubtle,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = BackgroundDark
+        containerColor = BackgroundCanvas
     ) { padding ->
         Column(
             modifier = Modifier
@@ -183,14 +215,14 @@ fun ProfileScreen(
                 .padding(padding)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Avatar with photo picker badge
             Box(
                 modifier = Modifier
-                    .size(108.dp)
+                    .size(112.dp)
                     .clickable {
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -203,16 +235,17 @@ fun ProfileScreen(
                         model = com.narayan.portfolioadmin.data.util.ImageUtils.parseImageModel(avatarUrl),
                         contentDescription = "Avatar",
                         modifier = Modifier
-                            .size(108.dp)
-                            .clip(CircleShape),
+                            .size(112.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, BorderSubtle, CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Box(
                         modifier = Modifier
-                            .size(108.dp)
+                            .size(112.dp)
                             .clip(CircleShape)
-                            .background(PrimaryIndigo),
+                            .background(NavyPrimary),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -228,7 +261,8 @@ fun ProfileScreen(
                     modifier = Modifier
                         .size(34.dp)
                         .clip(CircleShape)
-                        .background(AccentCyan),
+                        .background(NavyPrimary)
+                        .border(2.dp, SurfaceWhite, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isUploadingAvatar) {
@@ -240,7 +274,7 @@ fun ProfileScreen(
             }
 
             Text(
-                text = if (isUploadingAvatar) "Processing photo..." else "Tap avatar above to pick photo, or enter URL below",
+                text = if (isUploadingAvatar) "Processing photo..." else "Tap avatar to pick photo, or enter URL below",
                 fontSize = 12.sp,
                 color = TextSecondary
             )
@@ -251,14 +285,18 @@ fun ProfileScreen(
                 label = { Text("Avatar Photo URL") },
                 placeholder = { Text("https://... or photo data URI") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
-            // Personal Info
+            // Personal Information Section
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Personal Information",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                color = NavyPrimary,
                 modifier = Modifier.align(Alignment.Start)
             )
 
@@ -267,7 +305,9 @@ fun ProfileScreen(
                 onValueChange = { name = it },
                 label = { Text("Full Name *") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -275,7 +315,9 @@ fun ProfileScreen(
                 onValueChange = { title = it },
                 label = { Text("Title / Subtitle") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -283,7 +325,9 @@ fun ProfileScreen(
                 onValueChange = { bio = it },
                 label = { Text("Short Bio (Hero Section)") },
                 maxLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -291,15 +335,18 @@ fun ProfileScreen(
                 onValueChange = { aboutText = it },
                 label = { Text("About Details (About Section)") },
                 maxLines = 6,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
-            // Contact Information
-            Spacer(modifier = Modifier.height(8.dp))
+            // Contact Details Section
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Contact Details",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                color = NavyPrimary,
                 modifier = Modifier.align(Alignment.Start)
             )
 
@@ -308,7 +355,9 @@ fun ProfileScreen(
                 onValueChange = { email = it },
                 label = { Text("Email Address") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -316,7 +365,9 @@ fun ProfileScreen(
                 onValueChange = { phone = it },
                 label = { Text("Phone Number") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -324,15 +375,18 @@ fun ProfileScreen(
                 onValueChange = { location = it },
                 label = { Text("Location") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
-            // Socials & Resume
-            Spacer(modifier = Modifier.height(8.dp))
+            // Social Links & Resume Section
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Social Links & Resume",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                color = NavyPrimary,
                 modifier = Modifier.align(Alignment.Start)
             )
 
@@ -341,7 +395,9 @@ fun ProfileScreen(
                 onValueChange = { githubUrl = it },
                 label = { Text("GitHub URL") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -349,7 +405,9 @@ fun ProfileScreen(
                 onValueChange = { linkedinUrl = it },
                 label = { Text("LinkedIn URL") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -357,7 +415,9 @@ fun ProfileScreen(
                 onValueChange = { instagramUrl = it },
                 label = { Text("Instagram URL") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             OutlinedTextField(
@@ -365,7 +425,9 @@ fun ProfileScreen(
                 onValueChange = { resumeUrl = it },
                 label = { Text("Resume URL") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = textFieldColors
             )
 
             Row(
@@ -378,27 +440,36 @@ fun ProfileScreen(
                 Text("Available for Hire", color = TextPrimary, fontWeight = FontWeight.Medium)
                 Switch(
                     checked = availableForHire,
-                    onCheckedChange = { availableForHire = it }
+                    onCheckedChange = { availableForHire = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = NavyPrimary,
+                        uncheckedThumbColor = TextMuted,
+                        uncheckedTrackColor = SurfaceSubtle
+                    )
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = saveProfile,
                 enabled = !isSaving && name.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .height(50.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NavyPrimary,
+                    disabledContainerColor = NavyPrimary.copy(alpha = 0.5f)
+                )
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Default.Save, contentDescription = null)
+                    Icon(Icons.Default.Save, contentDescription = null, tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save Changes", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Save Changes", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
             }
 

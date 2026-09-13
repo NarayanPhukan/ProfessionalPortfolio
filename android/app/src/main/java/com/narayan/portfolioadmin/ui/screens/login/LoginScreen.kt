@@ -1,16 +1,15 @@
 package com.narayan.portfolioadmin.ui.screens.login
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.res.painterResource
-import com.narayan.portfolioadmin.R
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -22,9 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -33,6 +32,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.narayan.portfolioadmin.R
 import com.narayan.portfolioadmin.data.repository.AuthRepository
 import com.narayan.portfolioadmin.ui.theme.*
 import kotlinx.coroutines.launch
@@ -62,7 +62,7 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundDark)
+            .background(BackgroundCanvas)
             .imePadding()
             .verticalScroll(scrollState)
             .padding(horizontal = 24.dp, vertical = 32.dp),
@@ -72,31 +72,42 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 440.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = SurfaceDark),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+            border = BorderStroke(1.dp, BorderSubtle),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(28.dp),
+                    .padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // App Logo
-                Image(
-                    painter = painterResource(id = R.drawable.app_logo),
-                    contentDescription = "Portfolio Admin Logo",
+                // App Logo framed in subtle navy box
+                Box(
                     modifier = Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                )
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(NavySoft)
+                        .border(1.dp, NavyBorder, RoundedCornerShape(20.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.app_logo),
+                        contentDescription = "Portfolio Admin Logo",
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
                     text = "Welcome Back",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary
+                    fontWeight = FontWeight.Bold,
+                    color = NavyPrimary
                 )
 
                 Text(
@@ -110,11 +121,12 @@ fun LoginScreen(
 
                 if (errorMessage != null) {
                     Surface(
-                        color = DangerRed.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp)
+                            .padding(bottom = 18.dp)
                     ) {
                         Text(
                             text = errorMessage ?: "",
@@ -130,7 +142,7 @@ fun LoginScreen(
                     value = email,
                     onValueChange = { email = it; errorMessage = null },
                     label = { Text("Admin Email") },
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = TextMuted) },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = NavyPrimary) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
@@ -142,12 +154,15 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryIndigo,
-                        unfocusedBorderColor = BorderDark,
-                        focusedLabelColor = PrimaryIndigo,
-                        unfocusedLabelColor = TextMuted,
+                        focusedBorderColor = NavyPrimary,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedLabelColor = NavyPrimary,
+                        unfocusedLabelColor = TextSecondary,
                         focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        unfocusedTextColor = TextPrimary,
+                        focusedContainerColor = SurfaceWhite,
+                        unfocusedContainerColor = SurfaceWhite,
+                        cursorColor = NavyPrimary
                     )
                 )
 
@@ -157,7 +172,7 @@ fun LoginScreen(
                     value = password,
                     onValueChange = { password = it; errorMessage = null },
                     label = { Text("Password") },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = TextMuted) },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = NavyPrimary) },
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
@@ -193,16 +208,19 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryIndigo,
-                        unfocusedBorderColor = BorderDark,
-                        focusedLabelColor = PrimaryIndigo,
-                        unfocusedLabelColor = TextMuted,
+                        focusedBorderColor = NavyPrimary,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedLabelColor = NavyPrimary,
+                        unfocusedLabelColor = TextSecondary,
                         focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        unfocusedTextColor = TextPrimary,
+                        focusedContainerColor = SurfaceWhite,
+                        unfocusedContainerColor = SurfaceWhite,
+                        cursorColor = NavyPrimary
                     )
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(26.dp))
 
                 Button(
                     onClick = {
@@ -222,20 +240,23 @@ fun LoginScreen(
                     enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .height(50.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NavyPrimary,
+                        disabledContainerColor = NavyPrimary.copy(alpha = 0.5f)
+                    )
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
                             color = Color.White,
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.5.dp
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp
                         )
                     } else {
                         Text(
                             text = "Sign In as Admin",
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )

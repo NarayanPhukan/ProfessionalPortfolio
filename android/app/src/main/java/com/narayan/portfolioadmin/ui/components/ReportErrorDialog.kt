@@ -1,5 +1,6 @@
 package com.narayan.portfolioadmin.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -9,9 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DeviceUnknown
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +37,18 @@ fun ReportErrorDialog(
 
     val deviceInfo = remember { ErrorTracker.getDeviceInfo() }
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = NavyPrimary,
+        unfocusedBorderColor = BorderSubtle,
+        focusedLabelColor = NavyPrimary,
+        unfocusedLabelColor = TextSecondary,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedContainerColor = SurfaceWhite,
+        unfocusedContainerColor = SurfaceWhite,
+        cursorColor = NavyPrimary
+    )
+
     AlertDialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = {
@@ -53,7 +63,7 @@ fun ReportErrorDialog(
                 Text(
                     text = "Report Issue / Error",
                     style = MaterialTheme.typography.titleLarge,
-                    color = TextPrimary,
+                    color = NavyPrimary,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -78,12 +88,8 @@ fun ReportErrorDialog(
                     label = { Text("What went wrong? *") },
                     placeholder = { Text("e.g. Failed saving project thumbnail") },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryIndigo,
-                        unfocusedBorderColor = CardDark,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -92,7 +98,8 @@ fun ReportErrorDialog(
                     Text(
                         text = "Affected Area:",
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
                     )
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(SCREEN_OPTIONS) { screen ->
@@ -101,9 +108,9 @@ fun ReportErrorDialog(
                                 onClick = { selectedScreen = screen },
                                 label = { Text(screen, fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PrimaryIndigo,
+                                    selectedContainerColor = NavyPrimary,
                                     selectedLabelColor = Color.White,
-                                    containerColor = SurfaceDark,
+                                    containerColor = SurfaceSubtle,
                                     labelColor = TextSecondary
                                 )
                             )
@@ -119,19 +126,16 @@ fun ReportErrorDialog(
                     placeholder = { Text("Steps to reproduce, error message seen, etc.") },
                     minLines = 3,
                     maxLines = 5,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryIndigo,
-                        unfocusedBorderColor = CardDark,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 // Diagnostics Toggle
                 Surface(
-                    color = CardDark,
-                    shape = RoundedCornerShape(12.dp)
+                    color = SurfaceSubtle,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, BorderSubtle)
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(
@@ -149,12 +153,18 @@ fun ReportErrorDialog(
                                 Text(
                                     text = "Device specs, OS version & recent events",
                                     fontSize = 11.sp,
-                                    color = TextMuted
+                                    color = TextSecondary
                                 )
                             }
                             Switch(
                                 checked = includeDiagnostics,
-                                onCheckedChange = { includeDiagnostics = it }
+                                onCheckedChange = { includeDiagnostics = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = NavyPrimary,
+                                    uncheckedThumbColor = TextMuted,
+                                    uncheckedTrackColor = SurfaceSubtle
+                                )
                             )
                         }
 
@@ -163,7 +173,7 @@ fun ReportErrorDialog(
                             Text(
                                 text = "Device: $deviceInfo",
                                 fontSize = 10.sp,
-                                color = AccentCyan,
+                                color = NavyPrimary,
                                 lineHeight = 14.sp
                             )
                         }
@@ -179,7 +189,7 @@ fun ReportErrorDialog(
                     }
                 },
                 enabled = title.isNotBlank() && !isSubmitting,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo)
+                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)
             ) {
                 if (isSubmitting) {
                     CircularProgressIndicator(
@@ -188,7 +198,7 @@ fun ReportErrorDialog(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Submit Report")
+                    Text("Submit Report", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         },
@@ -200,6 +210,6 @@ fun ReportErrorDialog(
                 Text("Cancel", color = TextSecondary)
             }
         },
-        containerColor = SurfaceDark
+        containerColor = SurfaceWhite
     )
 }

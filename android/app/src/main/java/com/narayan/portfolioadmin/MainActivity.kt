@@ -14,6 +14,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.dp
 import com.narayan.portfolioadmin.data.repository.*
 import com.narayan.portfolioadmin.ui.navigation.Screen
 import com.narayan.portfolioadmin.ui.screens.dashboard.DashboardScreen
@@ -22,13 +25,7 @@ import com.narayan.portfolioadmin.ui.screens.messages.MessagesScreen
 import com.narayan.portfolioadmin.ui.screens.profile.ProfileScreen
 import com.narayan.portfolioadmin.ui.screens.projects.ProjectsScreen
 import com.narayan.portfolioadmin.ui.screens.skills.SkillsScreen
-import com.narayan.portfolioadmin.ui.theme.BackgroundDark
-import com.narayan.portfolioadmin.ui.theme.CardDark
-import com.narayan.portfolioadmin.ui.theme.PortfolioAdminTheme
-import com.narayan.portfolioadmin.ui.theme.PrimaryIndigo
-import com.narayan.portfolioadmin.ui.theme.SurfaceDark
-import com.narayan.portfolioadmin.ui.theme.TextMuted
-import com.narayan.portfolioadmin.ui.theme.TextPrimary
+import com.narayan.portfolioadmin.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
@@ -54,12 +51,21 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    containerColor = BackgroundDark,
+                    containerColor = BackgroundCanvas,
                     bottomBar = {
                         if (showBottomBar) {
                             NavigationBar(
-                                containerColor = SurfaceDark,
-                                contentColor = TextPrimary
+                                containerColor = SurfaceWhite,
+                                contentColor = TextPrimary,
+                                tonalElevation = 0.dp,
+                                modifier = Modifier.drawBehind {
+                                    drawLine(
+                                        color = BorderSubtle,
+                                        start = Offset(0f, 0f),
+                                        end = Offset(size.width, 0f),
+                                        strokeWidth = 1.dp.toPx()
+                                    )
+                                }
                             ) {
                                 Screen.bottomNavItems.forEach { screen ->
                                     val isSelected = currentRoute == screen.route
@@ -81,11 +87,11 @@ class MainActivity : ComponentActivity() {
                                         },
                                         label = { Text(screen.title) },
                                         colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = PrimaryIndigo,
-                                            selectedTextColor = PrimaryIndigo,
+                                            selectedIconColor = NavyPrimary,
+                                            selectedTextColor = NavyPrimary,
                                             unselectedIconColor = TextMuted,
                                             unselectedTextColor = TextMuted,
-                                            indicatorColor = CardDark
+                                            indicatorColor = NavySoft
                                         )
                                     )
                                 }

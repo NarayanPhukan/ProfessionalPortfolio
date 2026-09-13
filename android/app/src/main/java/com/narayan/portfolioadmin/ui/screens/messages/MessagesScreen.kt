@@ -2,6 +2,7 @@ package com.narayan.portfolioadmin.ui.screens.messages
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,17 +51,23 @@ fun MessagesScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Messages (${messages.size})", color = TextPrimary)
+                        Text(
+                            text = "Messages (${messages.size})",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = NavyPrimary
+                        )
                         val unread = messages.count { !it.is_read }
                         if (unread > 0) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Surface(
-                                color = WarningAmber.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(12.dp)
+                                color = NavySoft,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, NavyBorder.copy(alpha = 0.6f))
                             ) {
                                 Text(
                                     text = "$unread new",
-                                    color = WarningAmber,
+                                    color = NavyPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -72,15 +82,23 @@ fun MessagesScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = TextPrimary
+                                tint = NavyPrimary
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = BorderSubtle,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
             )
         },
-        containerColor = BackgroundDark
+        containerColor = BackgroundCanvas
     ) { padding ->
         if (messages.isEmpty()) {
             Box(
@@ -94,13 +112,14 @@ fun MessagesScreen(
                         Icons.Default.MailOutline,
                         contentDescription = null,
                         tint = TextMuted,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(52.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     Text(
                         text = "No contact messages received yet.",
                         color = TextSecondary,
-                        fontSize = 15.sp
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -112,6 +131,7 @@ fun MessagesScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                item { Spacer(modifier = Modifier.height(4.dp)) }
                 items(messages, key = { it.id }) { msg ->
                     MessageCard(
                         message = msg,
@@ -138,7 +158,12 @@ fun MessagesScreen(
             onDismissRequest = { selectedMessage = null },
             title = {
                 Column {
-                    Text(msg.subject.ifBlank { "Message from ${msg.name}" }, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = msg.subject.ifBlank { "Message from ${msg.name}" },
+                        fontWeight = FontWeight.Bold,
+                        color = NavyPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text("From: ${msg.name} <${msg.email}>", fontSize = 13.sp, color = TextSecondary)
                 }
             },
@@ -148,12 +173,20 @@ fun MessagesScreen(
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        text = msg.message,
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp
-                    )
+                    Surface(
+                        color = SurfaceSubtle,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, BorderSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = msg.message,
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            lineHeight = 22.sp,
+                            modifier = Modifier.padding(14.dp)
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -165,19 +198,19 @@ fun MessagesScreen(
                         }
                         context.startActivity(Intent.createChooser(intent, "Reply via"))
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo)
+                    colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)
                 ) {
-                    Icon(Icons.Default.Mail, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Mail, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Reply via Email")
+                    Text("Reply via Email", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { selectedMessage = null }) {
-                    Text("Close")
+                    Text("Close", color = TextSecondary)
                 }
             },
-            containerColor = SurfaceDark
+            containerColor = SurfaceWhite
         )
     }
 
@@ -185,8 +218,19 @@ fun MessagesScreen(
     if (messageToDelete != null) {
         AlertDialog(
             onDismissRequest = { messageToDelete = null },
-            title = { Text("Delete Message") },
-            text = { Text("Are you sure you want to delete message from '${messageToDelete?.name}'?") },
+            title = {
+                Text(
+                    text = "Delete Message",
+                    fontWeight = FontWeight.Bold,
+                    color = NavyPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete message from '${messageToDelete?.name}'?",
+                    color = TextSecondary
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -197,15 +241,15 @@ fun MessagesScreen(
                         }
                     }
                 ) {
-                    Text("Delete", color = DangerRed)
+                    Text("Delete", color = DangerRed, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { messageToDelete = null }) {
-                    Text("Cancel")
+                    Text("Cancel", color = TextSecondary)
                 }
             },
-            containerColor = SurfaceDark
+            containerColor = SurfaceWhite
         )
     }
 }
@@ -221,9 +265,9 @@ fun MessageCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (!message.is_read) CardDark else SurfaceDark
-        )
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        border = BorderStroke(1.dp, if (!message.is_read) NavyBorder else BorderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
@@ -236,7 +280,7 @@ fun MessageCard(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(WarningAmber)
+                        .background(NavyPrimary)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
             }
@@ -250,25 +294,33 @@ fun MessageCard(
                     Text(
                         text = message.name,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = if (!message.is_read) FontWeight.Bold else FontWeight.Medium,
-                        color = TextPrimary
+                        fontWeight = if (!message.is_read) FontWeight.Bold else FontWeight.SemiBold,
+                        color = NavyPrimary
                     )
-                    Text(
-                        text = if (!message.is_read) "New" else "Read",
-                        fontSize = 11.sp,
-                        color = if (!message.is_read) WarningAmber else TextMuted
-                    )
+                    Surface(
+                        color = if (!message.is_read) NavySoft else SurfaceSubtle,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = if (!message.is_read) "New" else "Read",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (!message.is_read) NavyPrimary else TextMuted,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
                 Text(
                     text = message.subject.ifBlank { message.email },
                     fontSize = 13.sp,
-                    color = AccentCyan,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 Text(
                     text = message.message,
@@ -280,7 +332,7 @@ fun MessageCard(
             }
 
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextMuted, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRed.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
             }
         }
     }

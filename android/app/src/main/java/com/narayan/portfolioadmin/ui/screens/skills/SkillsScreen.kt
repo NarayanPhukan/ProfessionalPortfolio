@@ -1,6 +1,7 @@
 package com.narayan.portfolioadmin.ui.screens.skills
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -54,19 +57,34 @@ fun SkillsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Skills (${skills.size})", color = TextPrimary) },
+                title = {
+                    Text(
+                        text = "Skills (${skills.size})",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = NavyPrimary
+                    )
+                },
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = TextPrimary
+                                tint = NavyPrimary
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = BorderSubtle,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
             )
         },
         floatingActionButton = {
@@ -75,13 +93,13 @@ fun SkillsScreen(
                     editingSkill = null
                     showDialog = true
                 },
-                containerColor = AccentCyan,
+                containerColor = NavyPrimary,
                 contentColor = Color.White
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Skill")
             }
         },
-        containerColor = BackgroundDark
+        containerColor = BackgroundCanvas
     ) { padding ->
         Column(
             modifier = Modifier
@@ -92,19 +110,25 @@ fun SkillsScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(CATEGORIES) { cat ->
                     FilterChip(
                         selected = selectedCategory == cat,
                         onClick = { selectedCategory = cat },
-                        label = { Text(cat) },
+                        label = { Text(cat, fontSize = 13.sp, fontWeight = if (selectedCategory == cat) FontWeight.Bold else FontWeight.Normal) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = PrimaryIndigo,
+                            selectedContainerColor = NavyPrimary,
                             selectedLabelColor = Color.White,
-                            containerColor = SurfaceDark,
+                            containerColor = SurfaceWhite,
                             labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = if (selectedCategory == cat) NavyPrimary else BorderSubtle,
+                            selectedBorderColor = NavyPrimary,
+                            enabled = true,
+                            selected = selectedCategory == cat
                         )
                     )
                 }
@@ -117,6 +141,7 @@ fun SkillsScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item { Spacer(modifier = Modifier.height(2.dp)) }
                 items(filteredSkills, key = { it.id }) { skill ->
                     SkillCard(
                         skill = skill,
@@ -153,8 +178,19 @@ fun SkillsScreen(
     if (skillToDelete != null) {
         AlertDialog(
             onDismissRequest = { skillToDelete = null },
-            title = { Text("Delete Skill") },
-            text = { Text("Are you sure you want to delete '${skillToDelete?.name}'?") },
+            title = {
+                Text(
+                    text = "Delete Skill",
+                    fontWeight = FontWeight.Bold,
+                    color = NavyPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete '${skillToDelete?.name}'?",
+                    color = TextSecondary
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -165,15 +201,15 @@ fun SkillsScreen(
                         }
                     }
                 ) {
-                    Text("Delete", color = DangerRed)
+                    Text("Delete", color = DangerRed, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { skillToDelete = null }) {
-                    Text("Cancel")
+                    Text("Cancel", color = TextSecondary)
                 }
             },
-            containerColor = SurfaceDark
+            containerColor = SurfaceWhite
         )
     }
 }
@@ -187,7 +223,9 @@ fun SkillCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        border = BorderStroke(1.dp, BorderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -204,25 +242,35 @@ fun SkillCard(
                         text = skill.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = NavyPrimary
                     )
-                    Text(
-                        text = skill.category,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = AccentCyan
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        color = NavySoft,
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = skill.category,
+                            color = NavyPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
                 Text(
                     text = "${skill.proficiency}%",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = PrimaryIndigo
+                    color = NavyPrimary
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Row {
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextMuted, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = NavyPrimary, modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRed, modifier = Modifier.size(20.dp))
@@ -230,7 +278,7 @@ fun SkillCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Proficiency Bar
             LinearProgressIndicator(
@@ -239,8 +287,8 @@ fun SkillCard(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
-                color = PrimaryIndigo,
-                trackColor = CardDark
+                color = NavyPrimary,
+                trackColor = SurfaceSubtle
             )
         }
     }
@@ -258,9 +306,28 @@ fun SkillEditDialog(
     var proficiency by remember { mutableFloatStateOf(skill?.proficiency?.toFloat() ?: 80f) }
     var displayOrder by remember { mutableStateOf(skill?.display_order?.toString() ?: "0") }
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = NavyPrimary,
+        unfocusedBorderColor = BorderSubtle,
+        focusedLabelColor = NavyPrimary,
+        unfocusedLabelColor = TextSecondary,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedContainerColor = SurfaceWhite,
+        unfocusedContainerColor = SurfaceWhite,
+        cursorColor = NavyPrimary
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (skill == null) "Add Skill" else "Edit Skill") },
+        title = {
+            Text(
+                text = if (skill == null) "Add Skill" else "Edit Skill",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = NavyPrimary
+            )
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -274,16 +341,24 @@ fun SkillEditDialog(
                     onValueChange = { name = it },
                     label = { Text("Skill Name *") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
-                Text("Category", fontSize = 13.sp, color = TextSecondary)
+                Text("Category", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(CATEGORIES.filter { it != "All" }) { cat ->
                         FilterChip(
                             selected = category == cat,
                             onClick = { category = cat },
-                            label = { Text(cat, fontSize = 12.sp) }
+                            label = { Text(cat, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NavyPrimary,
+                                selectedLabelColor = Color.White,
+                                containerColor = SurfaceSubtle,
+                                labelColor = TextSecondary
+                            )
                         )
                     }
                 }
@@ -293,16 +368,17 @@ fun SkillEditDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Proficiency", fontSize = 13.sp, color = TextSecondary)
-                        Text("${proficiency.toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = PrimaryIndigo)
+                        Text("Proficiency", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                        Text("${proficiency.toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = NavyPrimary)
                     }
                     Slider(
                         value = proficiency,
                         onValueChange = { proficiency = it },
                         valueRange = 0f..100f,
                         colors = SliderDefaults.colors(
-                            thumbColor = PrimaryIndigo,
-                            activeTrackColor = PrimaryIndigo
+                            thumbColor = NavyPrimary,
+                            activeTrackColor = NavyPrimary,
+                            inactiveTrackColor = SurfaceSubtle
                         )
                     )
                 }
@@ -312,7 +388,9 @@ fun SkillEditDialog(
                     onValueChange = { displayOrder = it },
                     label = { Text("Display Order") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
             }
         },
@@ -332,16 +410,16 @@ fun SkillEditDialog(
                     }
                 },
                 enabled = name.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
+                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)
             ) {
-                Text("Save")
+                Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = TextSecondary)
             }
         },
-        containerColor = SurfaceDark
+        containerColor = SurfaceWhite
     )
 }

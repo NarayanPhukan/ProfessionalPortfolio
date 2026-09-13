@@ -2,20 +2,40 @@ package com.narayan.portfolioadmin.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val PrimaryIndigo = Color(0xFF6366F1)
-val PrimaryVariant = Color(0xFF4F46E5)
-val AccentCyan = Color(0xFF06B6D4)
-val AccentPurple = Color(0xFF8B5CF6)
+// ===== White & Navy Blue Design System Palette =====
 
-val BackgroundDark = Color(0xFF0B0F19)
-val SurfaceDark = Color(0xFF111827)
-val CardDark = Color(0xFF1E293B)
-val BorderDark = Color(0xFF334155)
+// Primary Navy Hues
+val NavyPrimary = Color(0xFF0F2547)       // Deep executive navy blue
+val NavyDark = Color(0xFF0A192F)          // Ultra deep navy slate
+val NavyLight = Color(0xFF1E3A5F)         // Medium navy tone
+val NavyAccent = Color(0xFF1D4ED8)        // Refined cobalt/royal navy accent
+val NavySoft = Color(0xFFEFF4F9)          // Soft navy tint for chips, tags, pills
+val NavyBorder = Color(0xFFD0DDEB)        // Subtle navy hairline border
 
-val TextPrimary = Color(0xFFF8FAFC)
-val TextSecondary = Color(0xFF94A3B8)
-val TextMuted = Color(0xFF64748B)
+// Light Backgrounds & Crisp White Surfaces
+val BackgroundCanvas = Color(0xFFF8FAFC)  // Clean off-white canvas (prevents screen glare)
+val SurfaceWhite = Color(0xFFFFFFFF)      // Pure crisp white for cards, dialogs, sheets
+val SurfaceSubtle = Color(0xFFF1F5F9)     // Soft muted gray-white for field backgrounds/tracks
+val BorderSubtle = Color(0xFFE2E8F0)      // Crisp hairline border
+val BorderStrong = Color(0xFFCBD5E1)      // Distinct border
 
-val SuccessGreen = Color(0xFF10B981)
-val WarningAmber = Color(0xFFF59E0B)
-val DangerRed = Color(0xFFF43F5E)
+// High-Contrast Clean Typography
+val TextPrimary = Color(0xFF0F172A)       // Deep navy slate for titles & high readability
+val TextSecondary = Color(0xFF475569)     // Slate gray for secondary text & subtitles
+val TextMuted = Color(0xFF94A3B8)         // Light slate for hints & timestamps
+val TextOnNavy = Color(0xFFFFFFFF)        // Crisp white text on navy buttons & badges
+
+// Restrained Status Colors (Professional & Non-Neon)
+val SuccessGreen = Color(0xFF059669)      // Forest emerald
+val WarningAmber = Color(0xFFD97706)      // Warm amber
+val DangerRed = Color(0xFFDC2626)         // Executive crimson
+
+// ===== Compatibility Aliases =====
+val PrimaryIndigo = NavyPrimary
+val PrimaryVariant = NavyDark
+val AccentCyan = NavyAccent
+val AccentPurple = NavyLight
+val BackgroundDark = BackgroundCanvas
+val SurfaceDark = SurfaceWhite
+val CardDark = SurfaceWhite
+val BorderDark = BorderSubtle

@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,6 +23,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -55,19 +57,34 @@ fun ProjectsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Projects (${projects.size})", color = TextPrimary) },
+                title = {
+                    Text(
+                        text = "Projects (${projects.size})",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = NavyPrimary
+                    )
+                },
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = TextPrimary
+                                tint = NavyPrimary
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite),
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = BorderSubtle,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
             )
         },
         floatingActionButton = {
@@ -76,13 +93,13 @@ fun ProjectsScreen(
                     editingProject = null
                     showDialog = true
                 },
-                containerColor = PrimaryIndigo,
+                containerColor = NavyPrimary,
                 contentColor = Color.White
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Project")
             }
         },
-        containerColor = BackgroundDark
+        containerColor = BackgroundCanvas
     ) { padding ->
         if (projects.isEmpty()) {
             Box(
@@ -91,7 +108,7 @@ fun ProjectsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = PrimaryIndigo)
+                CircularProgressIndicator(color = NavyPrimary)
             }
         } else {
             LazyColumn(
@@ -101,6 +118,7 @@ fun ProjectsScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                item { Spacer(modifier = Modifier.height(4.dp)) }
                 items(projects, key = { it.id }) { project ->
                     ProjectCard(
                         project = project,
@@ -138,8 +156,19 @@ fun ProjectsScreen(
     if (projectToDelete != null) {
         AlertDialog(
             onDismissRequest = { projectToDelete = null },
-            title = { Text("Delete Project") },
-            text = { Text("Are you sure you want to delete '${projectToDelete?.title}'?") },
+            title = {
+                Text(
+                    text = "Delete Project",
+                    fontWeight = FontWeight.Bold,
+                    color = NavyPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete '${projectToDelete?.title}'?",
+                    color = TextSecondary
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -150,15 +179,15 @@ fun ProjectsScreen(
                         }
                     }
                 ) {
-                    Text("Delete", color = DangerRed)
+                    Text("Delete", color = DangerRed, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { projectToDelete = null }) {
-                    Text("Cancel")
+                    Text("Cancel", color = TextSecondary)
                 }
             },
-            containerColor = SurfaceDark
+            containerColor = SurfaceWhite
         )
     }
 }
@@ -171,8 +200,10 @@ fun ProjectCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        border = BorderStroke(1.dp, BorderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             if (project.image_url.isNotBlank()) {
@@ -196,20 +227,21 @@ fun ProjectCard(
                         text = project.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
+                        color = NavyPrimary,
                         modifier = Modifier.weight(1f)
                     )
                     if (project.featured) {
                         Surface(
-                            color = WarningAmber.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(6.dp)
+                            color = Color(0xFFFEF3C7),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFDE68A))
                         ) {
                             Text(
                                 text = "★ Featured",
                                 color = WarningAmber,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
                     }
@@ -231,15 +263,16 @@ fun ProjectCard(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(project.tech_stack) { tech ->
                             Surface(
-                                color = CardDark,
-                                shape = RoundedCornerShape(6.dp)
+                                color = NavySoft,
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, NavyBorder.copy(alpha = 0.5f))
                             ) {
                                 Text(
                                     text = tech,
-                                    color = AccentCyan,
+                                    color = NavyPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
                         }
@@ -254,7 +287,7 @@ fun ProjectCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = PrimaryIndigo)
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = NavyPrimary)
                     }
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRed)
@@ -307,9 +340,28 @@ fun ProjectEditDialog(
         }
     }
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = NavyPrimary,
+        unfocusedBorderColor = BorderSubtle,
+        focusedLabelColor = NavyPrimary,
+        unfocusedLabelColor = TextSecondary,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedContainerColor = SurfaceWhite,
+        unfocusedContainerColor = SurfaceWhite,
+        cursorColor = NavyPrimary
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (project == null) "Add Project" else "Edit Project") },
+        title = {
+            Text(
+                text = if (project == null) "Add Project" else "Edit Project",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = NavyPrimary
+            )
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -338,14 +390,16 @@ fun ProjectEditDialog(
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, BorderSubtle),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NavyPrimary)
                 ) {
                     if (isUploading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = NavyPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Processing Image...")
                     } else {
-                        Icon(Icons.Default.Upload, contentDescription = null)
+                        Icon(Icons.Default.Upload, contentDescription = null, tint = NavyPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(if (imageUrl.isBlank()) "Upload Image" else "Change Image")
                     }
@@ -357,7 +411,9 @@ fun ProjectEditDialog(
                     label = { Text("Image URL") },
                     placeholder = { Text("https://... or photo data URI") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 OutlinedTextField(
@@ -365,7 +421,9 @@ fun ProjectEditDialog(
                     onValueChange = { title = it },
                     label = { Text("Project Title *") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 OutlinedTextField(
@@ -373,7 +431,9 @@ fun ProjectEditDialog(
                     onValueChange = { description = it },
                     label = { Text("Short Description") },
                     maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 OutlinedTextField(
@@ -381,7 +441,9 @@ fun ProjectEditDialog(
                     onValueChange = { longDescription = it },
                     label = { Text("Detailed Description / Features") },
                     maxLines = 5,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 OutlinedTextField(
@@ -390,7 +452,9 @@ fun ProjectEditDialog(
                     label = { Text("Tech Stack (comma-separated)") },
                     placeholder = { Text("React, Node.js, PostgreSQL") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 OutlinedTextField(
@@ -398,7 +462,9 @@ fun ProjectEditDialog(
                     onValueChange = { liveUrl = it },
                     label = { Text("Live Website URL") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 OutlinedTextField(
@@ -406,7 +472,9 @@ fun ProjectEditDialog(
                     onValueChange = { githubUrl = it },
                     label = { Text("GitHub Repository URL") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 OutlinedTextField(
@@ -414,7 +482,9 @@ fun ProjectEditDialog(
                     onValueChange = { displayOrder = it },
                     label = { Text("Display Order") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = textFieldColors
                 )
 
                 Row(
@@ -422,10 +492,16 @@ fun ProjectEditDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Featured Project", color = TextPrimary)
+                    Text("Featured Project", color = TextPrimary, fontWeight = FontWeight.Medium)
                     Switch(
                         checked = featured,
-                        onCheckedChange = { featured = it }
+                        onCheckedChange = { featured = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = NavyPrimary,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = SurfaceSubtle
+                        )
                     )
                 }
             }
@@ -452,16 +528,16 @@ fun ProjectEditDialog(
                     }
                 },
                 enabled = title.isNotBlank() && !isUploading,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo)
+                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)
             ) {
-                Text("Save")
+                Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = TextSecondary)
             }
         },
-        containerColor = SurfaceDark
+        containerColor = SurfaceWhite
     )
 }

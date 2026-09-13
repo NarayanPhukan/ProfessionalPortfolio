@@ -1,6 +1,8 @@
 package com.narayan.portfolioadmin.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +43,7 @@ fun UpdateDialog(
                 Icon(
                     imageVector = Icons.Default.SystemUpdate,
                     contentDescription = null,
-                    tint = AccentCyan,
+                    tint = NavyPrimary,
                     modifier = Modifier.size(26.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -49,7 +51,7 @@ fun UpdateDialog(
                     text = "Update Available",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = NavyPrimary
                 )
             }
         },
@@ -62,8 +64,9 @@ fun UpdateDialog(
             ) {
                 // Version badge
                 Surface(
-                    color = CardDark,
-                    shape = RoundedCornerShape(12.dp)
+                    color = NavySoft,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, NavyBorder.copy(alpha = 0.6f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -73,13 +76,13 @@ fun UpdateDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Current Version", color = TextMuted, fontSize = 11.sp)
+                            Text("Current Version", color = TextSecondary, fontSize = 11.sp)
                             Text(currentVersion, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         }
-                        Text("➔", color = AccentCyan, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("➔", color = NavyPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("New Version", color = TextMuted, fontSize = 11.sp)
-                            Text("v${updateInfo.versionName}", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("New Version", color = TextSecondary, fontSize = 11.sp)
+                            Text("v${updateInfo.versionName}", color = NavyPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
@@ -90,12 +93,13 @@ fun UpdateDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.NewReleases, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("What's New:", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("What's New:", color = NavyPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                         }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(BackgroundDark, RoundedCornerShape(10.dp))
+                                .background(SurfaceSubtle, RoundedCornerShape(10.dp))
+                                .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
                                 .padding(12.dp)
                         ) {
                             Text(
@@ -117,15 +121,15 @@ fun UpdateDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Downloading update...", color = TextPrimary, fontSize = 12.sp)
-                            Text("$percent%", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("$percent%", color = NavyPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         LinearProgressIndicator(
                             progress = { downloadProgress },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp),
-                            color = AccentCyan,
-                            trackColor = CardDark
+                            color = NavyPrimary,
+                            trackColor = SurfaceSubtle
                         )
                     }
                 }
@@ -143,16 +147,16 @@ fun UpdateDialog(
             Button(
                 onClick = { onInstall(updateInfo) },
                 enabled = !isDownloading,
-                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan)
+                colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)
             ) {
                 if (isDownloading) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Installing...", color = BackgroundDark, fontWeight = FontWeight.Bold)
+                    Text("Installing...", color = Color.White, fontWeight = FontWeight.Bold)
                 } else {
-                    Icon(Icons.Default.Download, contentDescription = null, tint = BackgroundDark, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Download & Install", color = BackgroundDark, fontWeight = FontWeight.Bold)
+                    Text("Download & Install", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         },
@@ -163,6 +167,6 @@ fun UpdateDialog(
                 }
             }
         },
-        containerColor = SurfaceDark
+        containerColor = SurfaceWhite
     )
 }
