@@ -90,7 +90,7 @@ fun ProjectsScreen(
                 shape = RoundedCornerShape(50),
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
                 icon = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.White) },
-                text = { Text("Add Project", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                text = { Text("Add Project", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) },
                 modifier = Modifier.padding(bottom = 80.dp, end = 8.dp)
             )
         },
