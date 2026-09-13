@@ -6,6 +6,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -26,6 +30,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -78,6 +83,21 @@ fun ProjectsScreen(
         }
     }
 
+    val listState = rememberLazyListState()
+    val isFabExpanded by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 60
+        }
+    }
+    val fabRotation by animateFloatAsState(
+        targetValue = if (isFabExpanded) 0f else 180f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "fab_rotation"
+    )
+
     Scaffold(
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -85,11 +105,19 @@ fun ProjectsScreen(
                     editingProject = null
                     showDialog = true
                 },
+                expanded = isFabExpanded,
                 containerColor = Color(0xFF0F1E36),
                 contentColor = Color.White,
                 shape = RoundedCornerShape(50),
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
-                icon = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.White) },
+                icon = {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add Project",
+                        tint = Color.White,
+                        modifier = Modifier.rotate(fabRotation)
+                    )
+                },
                 text = { Text("Add Project", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) },
                 modifier = Modifier.padding(bottom = 80.dp, end = 8.dp)
             )
@@ -97,6 +125,7 @@ fun ProjectsScreen(
         containerColor = BackgroundCanvas
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
