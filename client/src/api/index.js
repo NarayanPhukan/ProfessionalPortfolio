@@ -70,8 +70,9 @@ export const profileAPI = {
 export const projectsAPI = {
   getAll: async () => {
     try {
-      const res = await fetch(`${FIRESTORE_BASE}/projects?nocache=${Date.now()}`, {
-        cache: 'no-store'
+      const res = await fetch(`${FIRESTORE_BASE}/projects`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
       });
       if (res.ok) {
         const json = await res.json();
