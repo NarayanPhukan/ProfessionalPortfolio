@@ -33,6 +33,7 @@ data class Project(
     @get:PropertyName("live_url") @set:PropertyName("live_url") var live_url: String = "",
     @get:PropertyName("github_url") @set:PropertyName("github_url") var github_url: String = "",
     @get:PropertyName("featured") @set:PropertyName("featured") var featured: Boolean = false,
+    @get:PropertyName("hidden") @set:PropertyName("hidden") var hidden: Boolean = false,
     @get:PropertyName("display_order") @set:PropertyName("display_order") var display_order: Int = 0,
     @get:PropertyName("created_at") @set:PropertyName("created_at") var created_at: String = ""
 )

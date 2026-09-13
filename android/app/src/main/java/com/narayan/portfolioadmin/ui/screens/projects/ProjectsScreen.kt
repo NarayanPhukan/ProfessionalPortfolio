@@ -288,8 +288,15 @@ fun ProjectsScreen(
                         },
                         onToggleVisibility = {
                             coroutineScope.launch {
-                                val updated = project.copy(featured = !project.featured)
-                                projectsRepository.saveProject(updated)
+                                val updated = project.copy(hidden = !project.hidden)
+                                val res = projectsRepository.saveProject(updated)
+                                if (res.isSuccess) {
+                                    Toast.makeText(
+                                        context,
+                                        if (updated.hidden) "Project marked hidden from web" else "Project is now visible on web",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         },
                         onDelete = { projectToDelete = project }
@@ -414,8 +421,10 @@ fun ProjectCardItem(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
-                } else {
-                    // Top-Left: Hidden / Draft Badge (matches Image 3)
+                }
+
+                // Top-Left: Hidden Badge (if project is marked hidden)
+                if (project.hidden) {
                     Surface(
                         color = Color(0xDD1E293B),
                         shape = RoundedCornerShape(50),
@@ -551,7 +560,7 @@ fun ProjectCardItem(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (project.featured) {
+                        if (!project.hidden) {
                             Icon(Icons.Default.Visibility, contentDescription = null, tint = Color(0xFF0F1E36), modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(5.dp))
                             Text("Visible", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F1E36))
@@ -602,6 +611,7 @@ fun ProjectEditDialog(
     var liveUrl by remember { mutableStateOf(project?.live_url ?: "") }
     var githubUrl by remember { mutableStateOf(project?.github_url ?: "") }
     var featured by remember { mutableStateOf(project?.featured ?: false) }
+    var hidden by remember { mutableStateOf(project?.hidden ?: false) }
     var displayOrder by remember { mutableStateOf(project?.display_order?.toString() ?: "0") }
 
     var isUploading by remember { mutableStateOf(false) }
@@ -777,13 +787,31 @@ fun ProjectEditDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Featured / Visible", color = TextPrimary, fontWeight = FontWeight.Medium)
+                    Text("Featured Project", color = TextPrimary, fontWeight = FontWeight.Medium)
                     Switch(
                         checked = featured,
                         onCheckedChange = { featured = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = Color(0xFF0F1E36),
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = SurfaceSubtle
+                        )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Hidden from Portfolio Web", color = TextPrimary, fontWeight = FontWeight.Medium)
+                    Switch(
+                        checked = hidden,
+                        onCheckedChange = { hidden = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = DangerRed,
                             uncheckedThumbColor = TextMuted,
                             uncheckedTrackColor = SurfaceSubtle
                         )
@@ -806,6 +834,7 @@ fun ProjectEditDialog(
                             live_url = liveUrl.trim(),
                             github_url = githubUrl.trim(),
                             featured = featured,
+                            hidden = hidden,
                             display_order = displayOrder.toIntOrNull() ?: 0,
                             created_at = project?.created_at ?: ""
                         )

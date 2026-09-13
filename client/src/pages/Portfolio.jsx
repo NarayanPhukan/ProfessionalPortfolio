@@ -17,9 +17,30 @@ export default function Portfolio() {
 
   useEffect(() => {
     loadData();
+
+    // Auto-refresh dynamically when user returns to the portfolio tab
+    const handleFocus = () => loadData(true);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(true);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Dynamic background sync every 8 seconds to stay seamlessly in sync with the Android admin app
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 8000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
       const [profileRes, projectsRes, skillsRes] = await Promise.all([
         profileAPI.get(),
@@ -32,7 +53,7 @@ export default function Portfolio() {
     } catch (err) {
       console.error('Error loading data:', err);
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
 
   const handleContactSubmit = async (e) => {

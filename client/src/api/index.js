@@ -70,13 +70,18 @@ export const profileAPI = {
 export const projectsAPI = {
   getAll: async () => {
     try {
-      const res = await fetch(`${FIRESTORE_BASE}/projects`);
+      const res = await fetch(`${FIRESTORE_BASE}/projects?nocache=${Date.now()}`, {
+        cache: 'no-store'
+      });
       if (res.ok) {
         const json = await res.json();
-        const list = (json.documents || []).map(d => ({
-          id: d.name.split('/').pop(),
-          ...parseFirestoreFields(d.fields)
-        })).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        const list = (json.documents || [])
+          .map(d => ({
+            id: d.name.split('/').pop(),
+            ...parseFirestoreFields(d.fields)
+          }))
+          .filter(p => !p.hidden && p.visible !== false && !p.is_hidden)
+          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         return { data: list };
       }
     } catch (e) {

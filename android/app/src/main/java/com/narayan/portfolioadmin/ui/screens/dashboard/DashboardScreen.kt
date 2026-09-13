@@ -325,7 +325,7 @@ fun DashboardScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = projects.size.toString(),
+                                        text = projects.count { !it.hidden }.toString(),
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White

@@ -7,18 +7,24 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const snapshot = await db.collection('projects').orderBy('display_order', 'asc').get();
-    const projects = snapshot.docs.map(doc => ({
+    let projects = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+    if (req.query.include_hidden !== 'true') {
+      projects = projects.filter(p => !p.hidden && p.visible !== false && !p.is_hidden);
+    }
     res.json(projects);
   } catch (err) {
     // Fallback without ordering if index is building
     try {
       const snapshot = await db.collection('projects').get();
-      const projects = snapshot.docs
+      let projects = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      if (req.query.include_hidden !== 'true') {
+        projects = projects.filter(p => !p.hidden && p.visible !== false && !p.is_hidden);
+      }
       res.json(projects);
     } catch (fallbackErr) {
       res.status(500).json({ error: fallbackErr.message });
@@ -33,7 +39,11 @@ router.get('/:id', async (req, res) => {
     if (!doc.exists) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    res.json({ id: doc.id, ...doc.data() });
+    const data = doc.data();
+    if (req.query.include_hidden !== 'true' && (data.hidden || data.visible === false || data.is_hidden)) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.json({ id: doc.id, ...data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -42,7 +52,7 @@ router.get('/:id', async (req, res) => {
 // POST create project (admin)
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { title, description, long_description, image_url, tech_stack, live_url, github_url, featured, display_order } = req.body;
+    const { title, description, long_description, image_url, tech_stack, live_url, github_url, featured, hidden, display_order } = req.body;
     const newProject = {
       title: title || '',
       description: description || '',
@@ -52,6 +62,7 @@ router.post('/', authMiddleware, async (req, res) => {
       live_url: live_url || '',
       github_url: github_url || '',
       featured: Boolean(featured),
+      hidden: Boolean(hidden),
       display_order: Number(display_order) || 0,
       created_at: new Date().toISOString()
     };
